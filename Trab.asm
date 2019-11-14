@@ -36,6 +36,9 @@ Ponto db 0 ; para saber se tem ponto a string de entrada
 
 Contadores dw 16 dup(?); contadores da parede
 
+linha dw 0
+coluna dw 0 
+
 Desenhar dw 0;booleano para saber se tem que desenhar
 
 	.code
@@ -125,12 +128,7 @@ Continua3:
 	cmp		ax,0
 	jz		TerminouArquivo
 	
-	;	dl = toUpper(dl)
-	cmp		dl,'a'
-	jb		Continua4
-	cmp		dl,'z'
-	ja		Continua4
-	sub		dl,20h		
+	call incrementaContador
 Continua4:
 
 	;	if ( setChar(FileHandleDst, DL) == 0) continue;
@@ -399,24 +397,32 @@ set_cursor endp
 incrementaContador proc near 
 	mov desenhar,0
 
-	cmp al,'0'
+	cmp dl,'0'
 	jb fimic
-	cmp al,'9'
+	cmp dl,'9'
 	ja ic0
 
-	sub al,'0'
+	sub dl,'0'
 	inc desenhar 
+
+	mov bl,dl
+	mov bh,0
+	add WORD ptr [bx+contadores],1
 
 	jmp fimic
 
 	ic0:
-	cmp al,'a'
+	cmp dl,'a'
 	jb fimic
-	cmp al,'e'
+	cmp dl,'e'
 	ja fimic
 
-	sub al,'a'-10
+	sub dl,'a'-10
 	inc desenhar 
+
+	mov bl,dl
+	mov bh,0
+	add WORD ptr [bx+contadores],1
 
 	fimic:
 	ret 
