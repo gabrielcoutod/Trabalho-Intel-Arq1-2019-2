@@ -36,8 +36,57 @@ Ponto db 0 ; para saber se tem ponto a string de entrada
 
 Contadores dw 16 dup(?); contadores da parede
 
+ContAtual dw 0 
+
+; informacoes da parede
 linha dw 0
 coluna dw 0 
+
+Preto db 'Preto – ',0
+tPreto db $-Preto -1
+
+Azul db 'Azul – ',0
+tAzul db $-Azul -1
+
+Verde db 'Verde – ',0
+tVerde db $-Verde -1
+
+Ciano db 'Ciano – ',0
+tCiano db $-Ciano -1
+
+Vermelho db 'Vermelho – ',0
+tVermelho db $-Vermelho -1
+
+Magenta db 'Magenta – ',0
+tMagenta db $-Magenta -1
+
+Marrom db 'Marrom – ',0
+tMarrom  db $-Marrom -1
+
+Cinza_claro db 'Cinza claro – ',0
+tCinza claro db $-Cinza claro -1
+
+Cinza_escuro db 'Cinza escuro –' ,0
+tCinza_escuro db $-Cinza_escuro -1
+
+Azul_claro db 'Azul claro – ',0
+tAzul_claro db $-Azul_claro-1 
+
+Verde_claro db 'Verde claro – ',0
+tVerde_claro db $-Verde_claro-1 
+
+Ciano_claro db 'Ciano claro – ',0
+tCiano_claro db $-Ciano_claro-1
+
+Vermelho_claro db'Vermelho claro – ',0
+tVermelho_claro db $-Vermelho_claro-1
+
+Magenta_claro db 'Magenta claro – ',0
+tMagenta_claro db $-Magenta_clar-1
+
+Amarelo db 'Amarelo – ',0
+tamarelo db $-amarelo-1
+
 
 Desenhar dw 0;booleano para saber se tem que desenhar
 
@@ -50,8 +99,8 @@ Inicio:
 	call clrscr
 
 	;cursor no inicio
-	mov  dl, 0                 ;◄■■ SCREEN COLUMN 18 (X).
-	mov  dh, 0                 ;◄■■ SCREEN ROW 2 (Y).
+	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
+	mov  dh, 0                 ;◄■■ SCREEN ROW 0 (Y).
 	call set_cursor             ;◄■■ SET CURSOR POSITION.
 
 	;Mensagem de inicio
@@ -85,6 +134,40 @@ continua0:
 	.exit	1
 Continua1:
 
+	;do {
+	;	if ( (CF,DL,AX = getChar(FileHandleSrc)) ) {
+	;		printf("");
+	;		fclose(FileHandleSrc)
+	;		fclose(FileHandleDst)
+	;		exit(1)
+	;	}
+	mov		bx,FileHandleSrc
+	call	getChar
+	jnc		Continua2
+	lea		bx, MsgErroReadFile
+	call	printf_s
+	mov		bx,FileHandleSrc
+	call	fclose
+	.exit	1
+Continua2:
+
+	;	if (AX==0) break;
+	cmp		ax,0
+	jz		continua3
+	
+	call 	incrementaContador
+	; desenhar ladrilhos vai aqui 
+	; desenhar ladrilhos vai aqui 
+	; desenhar ladrilhos vai aqui 
+	; desenhar ladrilhos vai aqui 
+	; desenhar ladrilhos vai aqui 
+	; desenhar ladrilhos vai aqui 
+	jmp 	continua1
+Continua3:
+	; fecha arquivo com as paredes
+	mov		bx,FileHandleSrc
+	call	fclose
+
 	;GetFileNameDst();	// Pega o nome do arquivo de origem -> FileNameDst
 	call	GetFileNameDst
 
@@ -97,44 +180,17 @@ Continua1:
 	lea		dx,FileNameDst
 	call	fcreate
 	mov		FileHandleDst,bx
-	jnc		Continua2
-	mov		bx,FileHandleSrc
-	call	fclose
+	jnc		Continua4
 	lea		bx, MsgErroCreateFile
 	call	printf_s
 	.exit	1
-Continua2:
 
-	;do {
-	;	if ( (CF,DL,AX = getChar(FileHandleSrc)) ) {
-	;		printf("");
-	;		fclose(FileHandleSrc)
-	;		fclose(FileHandleDst)
-	;		exit(1)
-	;	}
-	mov		bx,FileHandleSrc
-	call	getChar
-	jnc		Continua3
-	lea		bx, MsgErroReadFile
-	call	printf_s
-	mov		bx,FileHandleSrc
-	call	fclose
-	mov		bx,FileHandleDst
-	call	fclose
-	.exit	1
-Continua3:
-
-	;	if (AX==0) break;
-	cmp		ax,0
-	jz		TerminouArquivo
-	
-	call incrementaContador
 Continua4:
-
+	
 	;	if ( setChar(FileHandleDst, DL) == 0) continue;
 	mov		bx,FileHandleDst
-	call	setChar
-	jnc		Continua2
+	call	escreveContadores
+	jnc		TerminouArquivo
 
 	;	printf ("Erro na escrita....;)")
 	;	fclose(FileHandleSrc)
@@ -142,23 +198,19 @@ Continua4:
 	;	exit(1)
 	lea		bx, MsgErroWriteFile
 	call	printf_s
-	mov		bx,FileHandleSrc		; Fecha arquivo origem
-	call	fclose
 	mov		bx,FileHandleDst		; Fecha arquivo destino
 	call	fclose
 	.exit	1
 	
 	;} while(1);
-		
+
 TerminouArquivo:
-	;fclose(FileHandleSrc)
 	;fclose(FileHandleDst)
 	;exit(0)
-	mov		bx,FileHandleSrc	; Fecha arquivo origem
-	call	fclose
 	mov		bx,FileHandleDst	; Fecha arquivo destino
 	call	fclose
 	.exit	0
+
 
 		
 ;--------------------------------------------------------------------
@@ -283,7 +335,7 @@ getChar	endp
 ;--------------------------------------------------------------------
 setChar	proc	near
 	mov		ah,40h
-	mov		cx,1
+	;mov		cx,1 VIA VIR EM CX O NUMERO DE CARACTERES
 	mov		FileBuffer,dl
 	lea		dx,FileBuffer
 	int		21h
@@ -429,6 +481,128 @@ incrementaContador proc near
 
 incrementaContador endp 
 
+; escreve contadores handle em bx
+escreveContadores proc near
+	mov		contAtual,0
+
+	lea 	bx,Preto
+	mov 	cx,tPreto
+	call 	printf_f
+	jnc		ec0
+	ret
+ec0:
+	lea 	bx,Azul 
+	mov 	cx,tAzul
+	call 	printf_f
+	jnc		ec1
+	ret
+ec1:
+	lea 	bx,Verde 
+	mov 	cx,tVerde
+	call 	printf_f
+	jnc		ec2
+	ret
+ec2:
+	lea 	bx,Ciano 
+	mov 	cx,tCiano
+	call 	printf_f
+	jnc		ec3
+	ret
+ec3:
+	lea 	bx,Vermelho
+	mov 	cx,tVermelho
+	call 	printf_f
+	jnc		ec4
+	ret
+ec4:
+	lea 	bx,Magenta
+	mov 	cx,tMagenta
+	call 	printf_f
+	jnc		ec5
+	ret
+ec5:
+	lea 	bx,Marrom
+	mov 	cx,tMarrom
+	call 	printf_f
+	jnc		ec6
+	ret
+ec6:
+	lea 	bx,Cinza_claro
+	mov 	cx,tCinza_escuro
+	call 	printf_f
+	jnc		ec7
+	ret
+ec7:
+	lea 	bx,Cinza_escuro
+	mov 	cx,tCinza_escuro
+	call 	printf_f
+	jnc		ec8
+	ret
+ec8:
+	lea 	bx,Azul_claro
+	mov 	cx,tAzul_claro
+	call 	printf_f
+	jnc		ec9
+	ret
+ec9:
+	lea 	bx,Verde_claro
+	mov 	cx,tVerde_claro
+	call 	printf_f
+	jnc		ec10
+	ret
+ec10:
+	lea 	bx,Ciano_claro
+	mov 	cx,tCiano_claro
+	call 	printf_f
+	jnc		ec11
+	ret
+ec11:
+	lea 	bx,Vermelho_claro
+	mov 	cx,tVermelho_claro
+	call 	printf_f
+	jnc		ec12
+	ret
+ec12:
+	lea 	bx,Magenta_claro
+	mov 	cx,tMagenta_claro
+	call 	printf_f
+	jnc		ec13
+	ret
+ec13:
+	lea 	bx,Amarelo 
+	mov 	cx,tamarelo
+	call 	printf_f
+	ret 
+
+
+
+escreveContadores endp
+
+; recebe em bx endereco da string
+print_f proc near
+
+	call	setChar
+	jc		fimPrint_f
+
+	call 	escreveContador
+	jc 		fimPrint_f
+	inc 	contAtual
+
+	mov 	bx,MsgCRLF	
+	mov 	cx,2
+	call	setChar
+
+fimPrint_f:
+	ret 
+
+printf_f endp 
+
+
+escreveContador proc near
+	mov 	bx,contadores 
+	mov		ax,[bx+contAtual]
+	
+escreveContador endp 
 
 ;--------------------------------------------------------------------
 		end
