@@ -36,56 +36,67 @@ Ponto db 0 ; para saber se tem ponto a string de entrada
 
 Contadores dw 16 dup(?); contadores da parede
 
+; variaveis para converter numero para string
+string_contador db	10 dup (?)
+H2D		db	10 dup (?)
+sw_n	dw	0
+sw_f	db	0
+sw_m	dw	0
+
 ContAtual dw 0 
 
 ; informacoes da parede
+string_linha db 0,0,0
+
+string_coluna db 0,0,0
+
 linha dw 0
 coluna dw 0 
 
 Preto db 'Preto – ',0
-tPreto db $-Preto -1
+tPreto dw $-Preto -1
 
 Azul db 'Azul – ',0
-tAzul db $-Azul -1
+tAzul dw $-Azul -1
 
 Verde db 'Verde – ',0
-tVerde db $-Verde -1
+tVerde dw $-Verde -1
 
 Ciano db 'Ciano – ',0
-tCiano db $-Ciano -1
+tCiano dw $-Ciano -1
 
 Vermelho db 'Vermelho – ',0
-tVermelho db $-Vermelho -1
+tVermelho dw $-Vermelho -1
 
 Magenta db 'Magenta – ',0
-tMagenta db $-Magenta -1
+tMagenta dw $-Magenta -1
 
 Marrom db 'Marrom – ',0
-tMarrom  db $-Marrom -1
+tMarrom  dw $-Marrom -1
 
 Cinza_claro db 'Cinza claro – ',0
-tCinza claro db $-Cinza claro -1
+tCinza_claro dw $-Cinza_claro -1
 
 Cinza_escuro db 'Cinza escuro –' ,0
-tCinza_escuro db $-Cinza_escuro -1
+tCinza_escuro dw $-Cinza_escuro -1
 
 Azul_claro db 'Azul claro – ',0
-tAzul_claro db $-Azul_claro-1 
+tAzul_claro dw $-Azul_claro-1 
 
 Verde_claro db 'Verde claro – ',0
-tVerde_claro db $-Verde_claro-1 
+tVerde_claro dw $-Verde_claro-1 
 
 Ciano_claro db 'Ciano claro – ',0
-tCiano_claro db $-Ciano_claro-1
+tCiano_claro dw $-Ciano_claro-1
 
 Vermelho_claro db'Vermelho claro – ',0
-tVermelho_claro db $-Vermelho_claro-1
+tVermelho_claro dw $-Vermelho_claro-1
 
 Magenta_claro db 'Magenta claro – ',0
-tMagenta_claro db $-Magenta_clar-1
+tMagenta_claro dw $-Magenta_claro-1
 
 Amarelo db 'Amarelo – ',0
-tamarelo db $-amarelo-1
+tamarelo dw $-amarelo-1
 
 
 Desenhar dw 0;booleano para saber se tem que desenhar
@@ -95,13 +106,29 @@ Desenhar dw 0;booleano para saber se tem que desenhar
 
 	
 Inicio:
-
+	;limpa tela
 	call clrscr
+
+	;limpa dimensoes
+	mov string_linha,0
+	mov string_linha+1,0
+	mov string_coluna,0
+	mov string_coluna+1,0
+
+	;coloca es = ds
+	mov	 	bx,ds
+	mov 	es,bx
+
+	;direcao
+	cld
 
 	;cursor no inicio
 	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
 	mov  dh, 0                 ;◄■■ SCREEN ROW 0 (Y).
 	call set_cursor             ;◄■■ SET CURSOR POSITION.
+
+	;zera contadores
+	call limpa_contadores
 
 	;Mensagem de inicio
 	lea		bx,MsgInicio
@@ -119,6 +146,7 @@ Inicio:
 	call	printf_s
 	.exit 0 
 
+
 continua0:
 	;if (fopen(FileNameSrc)) {
 	;	printf("Erro na abertura do arquivo.\r\n")
@@ -128,10 +156,60 @@ continua0:
 	lea		dx,FileNameSrc
 	call	fopen
 	mov		FileHandleSrc,bx
-	jnc		Continua1
+	jnc		le_dimensao 
 	lea		bx, MsgErroOpenFile
 	call	printf_s
-	.exit	1
+	;.exit	1
+	jmp inicio 
+
+le_dimensao:
+	mov		bx,FileHandleSrc
+	call	getChar
+	jc		erro_dimensao
+	mov 	string_linha,dl
+
+	call	getChar
+	jc		erro_dimensao
+	cmp 	dl,','
+	je		achou_virgula
+	mov 	string_linha+1,dl
+
+	call	getChar
+	jc		erro_dimensao
+	cmp 	dl,','
+	je		achou_virgula
+
+achou_virgula:
+	call	getChar
+	jc		erro_dimensao
+	mov 	string_coluna,dl
+
+	call	getChar
+	jc		erro_dimensao
+	cmp 	dl,' '
+	je		guarda_dimensao
+	cmp 	dl,CR
+	je		guarda_dimensao
+
+	mov 	string_coluna+1,dl
+	jmp 	guarda_dimensao
+
+	erro_dimensao:
+	lea		bx, MsgErroReadFile
+	call	printf_s
+	mov		bx,FileHandleSrc
+	call	fclose
+	;.exit	1
+	jmp inicio
+
+guarda_dimensao:
+	lea bx,string_linha 
+	call atoi 
+	mov linha,ax
+
+	lea bx,string_coluna  
+	call atoi
+	mov coluna,ax
 Continua1:
 
 	;do {
@@ -148,7 +226,8 @@ Continua1:
 	call	printf_s
 	mov		bx,FileHandleSrc
 	call	fclose
-	.exit	1
+	;.exit	1
+	jmp Inicio
 Continua2:
 
 	;	if (AX==0) break;
@@ -168,6 +247,7 @@ Continua3:
 	mov		bx,FileHandleSrc
 	call	fclose
 
+
 	;GetFileNameDst();	// Pega o nome do arquivo de origem -> FileNameDst
 	call	GetFileNameDst
 
@@ -183,7 +263,8 @@ Continua3:
 	jnc		Continua4
 	lea		bx, MsgErroCreateFile
 	call	printf_s
-	.exit	1
+	;.exit	1
+	jmp inicio
 
 Continua4:
 	
@@ -200,7 +281,8 @@ Continua4:
 	call	printf_s
 	mov		bx,FileHandleDst		; Fecha arquivo destino
 	call	fclose
-	.exit	1
+	;.exit 1
+	jmp Inicio
 	
 	;} while(1);
 
@@ -209,7 +291,8 @@ TerminouArquivo:
 	;exit(0)
 	mov		bx,FileHandleDst	; Fecha arquivo destino
 	call	fclose
-	.exit	0
+	jmp inicio 
+	;.exit	0
 
 
 		
@@ -335,12 +418,22 @@ getChar	endp
 ;--------------------------------------------------------------------
 setChar	proc	near
 	mov		ah,40h
-	;mov		cx,1 VIA VIR EM CX O NUMERO DE CARACTERES
+	mov		cx,1
 	mov		FileBuffer,dl
 	lea		dx,FileBuffer
 	int		21h
 	ret
 setChar	endp	
+
+; em cx o numero de caracteres
+; bx endereco da string
+setString	proc	near
+	mov 	dx,bx 
+	mov 	bx,FileHandleDst
+	mov		ah,40h
+	int		21h
+	ret
+setString	endp	
 
 ;
 ;--------------------------------------------------------------------
@@ -423,9 +516,8 @@ ps_1:
 	ret
 printf_s	endp
 
-
-clrscr proc near
 ;Limpa tela
+clrscr proc near
     mov ax,0700h  ; function 07, AL=0 means scroll whole window
     mov bh,07h    ; character attribute = white on black
     mov cx,0000h  ; row = 0, col = 0
@@ -435,15 +527,24 @@ clrscr proc near
 	ret 
 clrscr endp
 
-
+;coloca o cursor na posicao
 ;INPUT : DL=X, DH=Y.
 set_cursor proc
-      mov  ah, 2                  ;◄■■ SERVICE TO SET CURSOR POSITION.
-      mov  bh, 0                  ;◄■■ VIDEO PAGE.
-      int  10h                    ;◄■■ BIOS SERVICES.
+      mov  ah, 2                  ;SERVICE TO SET CURSOR POSITION.
+      mov  bh, 0                  ;VIDEO PAGE.
+      int  10h                    ;BIOS SERVICES.
       ret
 set_cursor endp
 
+;procedimento para zerar contadores
+limpa_contadores proc
+	lea di,contadores
+	mov cx,16
+	mov ax,0
+
+	rep stosw
+	ret
+limpa_contadores endp
 
 ; informacao da parede em al
 incrementaContador proc near 
@@ -459,21 +560,23 @@ incrementaContador proc near
 
 	mov bl,dl
 	mov bh,0
+	add bx,bx
 	add WORD ptr [bx+contadores],1
 
 	jmp fimic
 
 	ic0:
-	cmp dl,'a'
+	cmp dl,'A'
 	jb fimic
-	cmp dl,'e'
+	cmp dl,'E'
 	ja fimic
 
-	sub dl,'a'-10
+	sub dl,'A'-10
 	inc desenhar 
 
 	mov bl,dl
 	mov bh,0
+	add bx,bx
 	add WORD ptr [bx+contadores],1
 
 	fimic:
@@ -579,18 +682,18 @@ ec13:
 escreveContadores endp
 
 ; recebe em bx endereco da string
-print_f proc near
+printf_f proc near
 
-	call	setChar
+	call	setString
 	jc		fimPrint_f
 
 	call 	escreveContador
 	jc 		fimPrint_f
 	inc 	contAtual
 
-	mov 	bx,MsgCRLF	
+	lea 	bx,MsgCRLF	
 	mov 	cx,2
-	call	setChar
+	call	setString
 
 fimPrint_f:
 	ret 
@@ -599,10 +702,208 @@ printf_f endp
 
 
 escreveContador proc near
-	mov 	bx,contadores 
-	mov		ax,[bx+contAtual]
-	
+	lea 	bx,contadores 
+	add 	bx,contAtual
+	add 	bx,contAtual
+	mov		ax,[bx]
+
+	lea 	bx,string_contador
+	call 	sprintf_w
+	lea		bx,string_contador
+	call fprintf_s
+	ret
 escreveContador endp 
+
+
+;--------------------------------------------------------------------
+;Função:Converte um ASCII-DECIMAL para HEXA
+;Entra: (S) -> DS:BX -> Ponteiro para o string de origem
+;Sai:	(A) -> AX -> Valor "Hex" resultante
+;Algoritmo:
+;	A = 0;
+;	while (*S!='\0') {
+;		A = 10 * A + (*S - '0')
+;		++S;
+;	}
+;	return
+;--------------------------------------------------------------------
+atoi	proc near
+
+		; A = 0;
+		mov		ax,0
+		
+atoi_2:
+		; while (*S!='\0') {
+		cmp		byte ptr[bx], 0
+		jz		atoi_1
+
+		; 	A = 10 * A
+		mov		cx,10
+		mul		cx
+
+		; 	A = A + *S
+		mov		ch,0
+		mov		cl,[bx]
+		add		ax,cx
+
+		; 	A = A - '0'
+		sub		ax,'0'
+
+		; 	++S
+		inc		bx
+		
+		;}
+		jmp		atoi_2
+
+atoi_1:
+		; return
+		ret
+
+atoi	endp
+
+
+;--------------------------------------------------------------------
+;Função: Converte um inteiro (n) para (string)
+;		 sprintf(string, "%d", n)
+;
+;void sprintf_w(char *string->BX, WORD n->AX) {
+;	k=5;
+;	m=10000;
+;	f=0;
+;	do {
+;		quociente = n / m : resto = n % m;	// Usar instrução DIV
+;		if (quociente || f) {
+;			*string++ = quociente+'0'
+;			f = 1;
+;		}
+;		n = resto;
+;		m = m/10;
+;		--k;
+;	} while(k);
+;
+;	if (!f)
+;		*string++ = '0';
+;	*string = '\0';
+;}
+;
+;Associação de variaveis com registradores e memória
+;	string	-> bx
+;	k		-> cx
+;	m		-> sw_m dw
+;	f		-> sw_f db
+;	n		-> sw_n	dw
+;--------------------------------------------------------------------
+
+sprintf_w	proc	near
+
+;void sprintf_w(char *string, WORD n) {
+	mov		sw_n,ax
+
+;	k=5;
+	mov		cx,5
+	
+;	m=10000;
+	mov		sw_m,10000
+	
+;	f=0;
+	mov		sw_f,0
+	
+;	do {
+sw_do:
+
+;		quociente = n / m : resto = n % m;	// Usar instrução DIV
+	mov		dx,0
+	mov		ax,sw_n
+	div		sw_m
+	
+;		if (quociente || f) {
+;			*string++ = quociente+'0'
+;			f = 1;
+;		}
+	cmp		al,0
+	jne		sw_store
+	cmp		sw_f,0
+	je		sw_continue
+sw_store:
+	add		al,'0'
+	mov		[bx],al
+	inc		bx
+	
+	mov		sw_f,1
+sw_continue:
+	
+;		n = resto;
+	mov		sw_n,dx
+	
+;		m = m/10;
+	mov		dx,0
+	mov		ax,sw_m
+	mov		bp,10
+	div		bp
+	mov		sw_m,ax
+	
+;		--k;
+	dec		cx
+	
+;	} while(k);
+	cmp		cx,0
+	jnz		sw_do
+
+;	if (!f)
+;		*string++ = '0';
+	cmp		sw_f,0
+	jnz		sw_continua2
+	mov		[bx],'0'
+	inc		bx
+sw_continua2:
+
+
+;	*string = '\0';
+	mov		byte ptr[bx],0
+		
+;}
+	ret
+		
+sprintf_w	endp
+
+;--------------------------------------------------------------------
+;Função: Escrever um string em arquivo
+; 	recebe em bx o endereco da string
+;--------------------------------------------------------------------
+
+fprintf_s	proc	near
+
+;	While (*s!='\0') {
+	mov		dl,[bx]
+	cmp		dl,0
+	je		ps_11
+
+;		putchar(*s)
+	push	bx
+	mov 	bx,FileHandleDst
+	call 	setChar
+	pop		bx
+	jc		ps_11 
+
+
+;		++s;
+	inc		bx
+		
+;	}
+	jmp		printf_s
+		
+ps_11:
+	ret
+	
+fprintf_s	endp
+
+; so esperar
+waitchar proc near
+	mov		ah,8
+	int		21H
+	ret
+waitchar endp
+
 
 ;--------------------------------------------------------------------
 		end
