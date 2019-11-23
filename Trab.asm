@@ -12,6 +12,8 @@
 		
 CR		equ		0dh
 LF		equ		0ah
+pos_inicial_x equ 10
+pos_inicial_y equ 10
 
 	.data
 FileNameSrc		db		256 dup (?)		; Nome do arquivo a ser lido
@@ -45,10 +47,27 @@ sw_m	dw	0
 
 ContAtual dw 0 
 
+
+lado_quadrado dw 0 
+
+; tamanho atual para desenhar linhas
+lado_linha dw 0 
+
+; informacoes da posicao atual do quadrado
+x_atual dw 0
+y_atual dw 0 
+
+; mostra a posicao atual do quadrado
+; para saber quando trocar de linha
+quadrado_pos dw 0 
+
+
 ; informacoes da parede
 string_linha db 0,0,0
 
 string_coluna db 0,0,0
+
+cor_atual db 0 
 
 linha dw 0
 coluna dw 0 
@@ -114,6 +133,15 @@ Inicio:
 	mov string_linha+1,0
 	mov string_coluna,0
 	mov string_coluna+1,0
+
+	;lado do quadrado versao sem bonus
+	mov lado_quadrado,24
+
+	mov quadrado_pos,0 
+
+
+	mov x_atual,pos_inicial_x
+	mov y_atual,pos_inicial_y
 
 	;coloca es = ds
 	mov	 	bx,ds
@@ -210,6 +238,12 @@ guarda_dimensao:
 	lea bx,string_coluna  
 	call atoi
 	mov coluna,ax
+
+	;troca para modo grafico
+	mov ah,0
+	mov al,12h
+	int 10h
+
 Continua1:
 
 	;do {
@@ -238,6 +272,7 @@ Continua2:
 	; desenhar ladrilhos vai aqui 
 	; desenhar ladrilhos vai aqui 
 	; desenhar ladrilhos vai aqui 
+	call desenha_quadrado
 	; desenhar ladrilhos vai aqui 
 	; desenhar ladrilhos vai aqui 
 	; desenhar ladrilhos vai aqui 
@@ -247,6 +282,8 @@ Continua3:
 	mov		bx,FileHandleSrc
 	call	fclose
 
+	call waitchar
+	call clrscr
 
 	;GetFileNameDst();	// Pega o nome do arquivo de origem -> FileNameDst
 	call	GetFileNameDst
@@ -518,6 +555,11 @@ printf_s	endp
 
 ;Limpa tela
 clrscr proc near
+	mov ah,0
+	mov al,07h
+	int 10h
+
+
     mov ax,0700h  ; function 07, AL=0 means scroll whole window
     mov bh,07h    ; character attribute = white on black
     mov cx,0000h  ; row = 0, col = 0
@@ -580,6 +622,8 @@ incrementaContador proc near
 	add WORD ptr [bx+contadores],1
 
 	fimic:
+	mov cor_atual,0
+	mov cor_atual,dl
 	ret 
 
 incrementaContador endp 
@@ -904,6 +948,167 @@ waitchar proc near
 	ret
 waitchar endp
 
+; recebe em cx colunaa do pixel
+; recebe em dx linha do pixel
+escreve_pixel proc near
+	mov ah,0ch
+	mov bh,00h 
+	int 10h
+escreve_pixel endp
+
+; em desenhar tem booleano e em lado_quadrado o tam do lado
+; I-----
+; |
+; |
+desenha_quadrado proc near
+	cmp desenhar,0
+	je fim_desenha_quadrado
+
+	mov bx,coluna
+	cmp quadrado_pos,bx
+	jne continua_desenha_quadrado
+	
+	mov quadrado_pos,0
+	mov x_atual,pos_inicial_x
+	mov bx,lado_quadrado
+	add y_atual,bx
+
+continua_desenha_quadrado:
+	inc quadrado_pos 
+
+	call rejunte
+	call DrawSquare
+
+	;mov x_atual,pos_inicial_x
+	;mov bx,lado_quadrado
+	;add y_atual,bx
+	mov bx,lado_quadrado
+	add x_atual,bx 
+
+fim_desenha_quadrado:
+	ret 
+desenha_quadrado endp
+
+; recebe em cx colunaa do pixel
+; recebe em dx linha do pixel
+; I
+; |
+; |
+linha_vertical proc near
+	mov bx,lado_quadrado
+	mov lado_linha,bx 
+loop_linha_vertical:	
+	call escreve_pixel
+	add cx,1 
+	sub lado_linha,1
+	cmp lado_linha,0
+	je loop_linha_vertical
+	ret 
+linha_vertical endp
+
+; recebe em cx colunaa do pixel
+; recebe em dx linha do pixel
+; I----
+linha_horizontal proc near
+	mov bx,lado_quadrado
+	mov lado_linha,bx 
+loop_linha_horizontal:	
+	call escreve_pixel
+	add dx,1 
+	sub lado_linha,1
+	cmp lado_linha,0
+	je loop_linha_horizontal
+	ret 
+linha_horizontal endp
+
+rejunte proc near
+    ;mov dx,[Player1Drawy]       ;top edge
+    ;mov di,[SideLength]         ;control y loop
+	mov dx,y_atual      ;top edge
+    mov di,lado_quadrado        ;control y loop
+    ;mov di,14h                  ;or this, if the side length is fixed
+
+SquareYlooprejunte:
+    ;mov cx,[Player1Drawx]       ;left edge
+    ;mov si,[SideLength]         ;control x loop
+	mov cx,x_atual      ;left edge
+    mov si,lado_quadrado        ;control x loop
+    ;mov si,14h                  ;or this, if the side length is fixed
+
+SquareXlooprejunte:
+    push cx                     ;I don't know if these 4 pushes are necessary...
+    push dx
+    push si
+    push di
+
+    mov bh,0h                   ;video page
+    ;mov al,[player1disccolor]   ;colour
+	mov al,0fh
+    mov ah,0ch                  ;draw pixel function
+    int 10h                     ;BIOS video interrupt
+
+    pop di                      ;... or these 4 matching pops are necessary
+    pop si                      ;depends on whether int 10h func corrupts them
+    pop dx
+    pop cx
+
+    inc cx                      ;advance X position
+    dec si                      ;count side of square to control the loop
+    jne SquareXlooprejunte             ;next horizontal pixel
+
+    inc dx                      ;advance Y position
+    dec di                      ;count side of square to control the loop
+    jne SquareYlooprejunte            ;next row
+
+	ret 
+rejunte endp
+
+
+DrawSquare proc near
+    ;mov dx,[Player1Drawy]       ;top edge
+    ;mov di,[SideLength]         ;control y loop
+	mov dx,y_atual      ;top edge
+	add dx,1
+    mov di,lado_quadrado        ;control y loop
+	sub di,2
+    ;mov di,14h                  ;or this, if the side length is fixed
+
+SquareYloop:
+    ;mov cx,[Player1Drawx]       ;left edge
+    ;mov si,[SideLength]         ;control x loop
+	mov cx,x_atual      ;left edge
+	add cx,1
+    mov si,lado_quadrado        ;control x loop
+	sub si,2
+    ;mov si,14h                  ;or this, if the side length is fixed
+
+SquareXloop:
+    push cx                     ;I don't know if these 4 pushes are necessary...
+    push dx
+    push si
+    push di
+
+    mov bh,0h                   ;video page
+    ;mov al,[player1disccolor]   ;colour
+	mov al,cor_atual
+    mov ah,0ch                  ;draw pixel function
+    int 10h                     ;BIOS video interrupt
+
+    pop di                      ;... or these 4 matching pops are necessary
+    pop si                      ;depends on whether int 10h func corrupts them
+    pop dx
+    pop cx
+
+    inc cx                      ;advance X position
+    dec si                      ;count side of square to control the loop
+    jne SquareXloop             ;next horizontal pixel
+
+    inc dx                      ;advance Y position
+    dec di                      ;count side of square to control the loop
+    jne SquareYloop             ;next row
+
+	ret 
+DrawSquare endp
 
 ;--------------------------------------------------------------------
 		end
