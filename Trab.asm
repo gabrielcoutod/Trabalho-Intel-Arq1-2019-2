@@ -12,8 +12,8 @@
 		
 CR		equ		0dh
 LF		equ		0ah
-pos_inicial_x equ 10
-pos_inicial_y equ 10
+pos_inicial_x equ 8
+pos_inicial_y equ 26
 
 	.data
 FileNameSrc		db		256 dup (?)		; Nome do arquivo a ser lido
@@ -32,6 +32,10 @@ MsgErroReadFile		db	"Erro na leitura do arquivo.", CR, LF, 0
 MsgErroWriteFile	db	"Erro na escrita do arquivo.", CR, LF, 0
 MsgCRLF				db	CR, LF, 0
 
+Msgarquivo db "Arquivo ",0
+Msgarquivo2 db " - Total de ladrilhos por cor:",0
+
+
 MAXSTRING	equ		200
 String	db		MAXSTRING dup (?)		; Usado na funcao gets
 Ponto db 0 ; para saber se tem ponto a string de entrada
@@ -47,6 +51,8 @@ sw_m	dw	0
 
 ContAtual dw 0 
 
+cor_caixa db 0 
+
 
 lado_quadrado dw 0 
 
@@ -61,6 +67,9 @@ y_atual dw 0
 ; para saber quando trocar de linha
 quadrado_pos dw 0 
 
+
+pos_x_contador db 0
+pos_y_contador db 0
 
 ; informacoes da parede
 string_linha db 0,0,0
@@ -244,6 +253,18 @@ guarda_dimensao:
 	mov al,12h
 	int 10h
 
+	; coloca cursor no inico
+	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
+	mov  dh, 0                 ;◄■■ SCREEN ROW 0 (Y).
+	call set_cursor             ;◄■■ SET CURSOR POSITION.
+	; mensagem de inicio
+	lea		bx,MsgInicio
+	call	printf_s
+
+	call desenha_caixa
+
+
+
 Continua1:
 
 	;do {
@@ -281,6 +302,9 @@ Continua3:
 	; fecha arquivo com as paredes
 	mov		bx,FileHandleSrc
 	call	fclose
+
+	call escreve_dados_parede
+	call escreve_contadores_tela
 
 	call waitchar
 	call clrscr
@@ -754,7 +778,7 @@ escreveContador proc near
 	lea 	bx,string_contador
 	call 	sprintf_w
 	lea		bx,string_contador
-	call fprintf_s
+	call 	fprintf_s
 	ret
 escreveContador endp 
 
@@ -934,7 +958,7 @@ fprintf_s	proc	near
 	inc		bx
 		
 ;	}
-	jmp		printf_s
+	jmp		fprintf_s
 		
 ps_11:
 	ret
@@ -955,6 +979,105 @@ escreve_pixel proc near
 	mov bh,00h 
 	int 10h
 escreve_pixel endp
+
+	;mov dx,396     ;top edge
+    ;mov di,640      ;control y loop
+
+	;mov cx,0     ;left edge
+    ;mov si,640       ;control x loop
+	;call linha_horizontal
+escreve_dados_parede proc near
+	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
+	mov  dh, 25                 ;◄■■ SCREEN ROW 0 (Y).
+	call set_cursor
+
+	lea		bx,MSGarquivo
+	call	printf_s
+
+	lea		bx,FileNameSrc
+	call	printf_s
+
+	lea		bx,MSGarquivo2
+	call	printf_s
+
+	ret
+escreve_dados_parede endp
+
+
+escreve_contadores_tela proc near
+
+	mov cor_atual,0
+	mov x_atual,30
+	mov y_atual,420 
+	mov pos_x_contador,4
+	mov pos_y_contador,28
+
+loop_escreve_contadores_tela:
+
+	call rejunte
+	call DrawSquare
+
+	mov 	al,cor_atual 
+	mov 	ah,0
+	lea 	bx,contadores 
+	add 	bx,ax 
+	add 	bx,ax 
+	mov		ax,[bx]
+
+	lea 	bx,string_contador
+	call 	sprintf_w
+	
+
+	mov  dl, pos_x_contador                 ;◄■■ SCREEN COLUMN 0 (X).
+	mov  dh, pos_y_contador     ;◄■■ SCREEN ROW 0 (Y).
+	call set_cursor
+	lea		bx,string_contador
+	call	printf_s
+
+	add pos_x_contador,5
+	add x_atual,40
+	add cor_atual,1 
+	mov al,cor_atual
+	cmp al,0fh
+	jne loop_escreve_contadores_tela
+
+	ret 
+escreve_contadores_tela endp 
+
+desenha_caixa proc near
+	mov cor_caixa,0eh
+
+	mov dx,16    ;top edge
+    mov di,640        ;control y loop
+
+	mov cx,0      ;left edge
+    mov si,640        ;control x loop
+	call linha_horizontal
+
+	mov dx,16      ;top edge
+    mov di,380        ;control y loop
+
+	mov cx,0      ;left edge
+    mov si,380       ;control x loop
+	call linha_vertical
+
+	mov dx,396     ;top edge
+    mov di,640      ;control y loop
+
+	mov cx,0     ;left edge
+    mov si,640       ;control x loop
+	call linha_horizontal
+
+	mov dx,16     ;top edge
+    mov di,380      ;control y loop
+
+	mov cx,639      ;left edge
+    mov si,380        ;control x loop
+	call linha_vertical
+
+	ret 
+
+desenha_caixa endp
 
 ; em desenhar tem booleano e em lado_quadrado o tam do lado
 ; I-----
@@ -995,14 +1118,27 @@ desenha_quadrado endp
 ; |
 ; |
 linha_vertical proc near
-	mov bx,lado_quadrado
-	mov lado_linha,bx 
-loop_linha_vertical:	
-	call escreve_pixel
-	add cx,1 
-	sub lado_linha,1
-	cmp lado_linha,0
-	je loop_linha_vertical
+
+linha_vertical_loop:
+    push cx                     ;I don't know if these 4 pushes are necessary...
+    push dx
+    push si
+    push di
+
+    mov bh,0h                   ;video page
+	mov al,cor_caixa
+    mov ah,0ch                  ;draw pixel function
+    int 10h                     ;BIOS video interrupt
+
+    pop di                      ;... or these 4 matching pops are necessary
+    pop si                      ;depends on whether int 10h func corrupts them
+    pop dx
+    pop cx
+
+    inc dx                      ;advance X position
+    dec di                      ;count side of square to control the loop
+    jne linha_vertical_loop            ;next horizontal pixel
+
 	ret 
 linha_vertical endp
 
@@ -1010,16 +1146,30 @@ linha_vertical endp
 ; recebe em dx linha do pixel
 ; I----
 linha_horizontal proc near
-	mov bx,lado_quadrado
-	mov lado_linha,bx 
-loop_linha_horizontal:	
-	call escreve_pixel
-	add dx,1 
-	sub lado_linha,1
-	cmp lado_linha,0
-	je loop_linha_horizontal
+linha_horizontal_loop:
+    push cx                     ;I don't know if these 4 pushes are necessary...
+    push dx
+    push si
+    push di
+
+    mov bh,0h                   ;video page
+	mov al,0eh
+    mov ah,0ch                  ;draw pixel function
+    int 10h                     ;BIOS video interrupt
+
+    pop di                      ;... or these 4 matching pops are necessary
+    pop si                      ;depends on whether int 10h func corrupts them
+    pop dx
+    pop cx
+
+    inc cx                      ;advance X position
+    dec si                      ;count side of square to control the loop
+    jne linha_horizontal_loop           ;next horizontal pixel
+
 	ret 
 linha_horizontal endp
+
+
 
 rejunte proc near
     ;mov dx,[Player1Drawy]       ;top edge
@@ -1062,6 +1212,8 @@ SquareXlooprejunte:
 
 	ret 
 rejunte endp
+
+
 
 
 DrawSquare proc near
