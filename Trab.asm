@@ -395,10 +395,16 @@ GetFileNameDst	proc	near
 	rep 	movsb
 
 	; agora coloca a extensao .rel
-	dec		di
-	dec		di
-	dec		di
-	dec		di
+	; para voltar na string
+	std
+	; para voltar para dentro da string
+	dec di 
+	mov		cl,String+1
+	mov		ch,0
+	mov 	al,'.'
+	repne 	scasb
+	cld 
+	inc di
 
 	mov		byte ptr es:[di],'.'	
 	inc		di
