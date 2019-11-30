@@ -1,46 +1,40 @@
+; Gabriel Couto Domingues 00302229
 
-;
-;====================================================================
-;	- Escrever um programa para ler um arquivo texto e 
-;		apresentá-lo na tela
-;	- O usuário devem informar o nome do arquivo, 
-;		assim que for apresentada a mensagem: “Nome do arquivo: “
-;====================================================================
-;
 	.model		small
 	.stack
-		
-CR		equ		0dh
-LF		equ		0ah
-pos_inicial_x equ 8
-pos_inicial_y equ 26
+
+; CONSTANTES 
+CR		equ		0dh ; CARRIAGE RETURN
+LF		equ		0ah ; LINE FEED
+pos_inicial_x equ 	8 ; posicao inicial para desenhar parede
+pos_inicial_y equ 	26 ; poiscao inicial para desenhar parede
+MAXSTRING	equ		200 ; string maxima
 
 	.data
+; variaveis de arquivos
 FileNameSrc		db		256 dup (?)		; Nome do arquivo a ser lido
 FileNameDst		db		256 dup (?)		; Nome do arquivo a ser escrito
 FileHandleSrc	dw		0				; Handler do arquivo origem
 FileHandleDst	dw		0				; Handler do arquivo destino
 FileBuffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
 
-MsgInicio db "Aluno: Gabriel Couto Domingues Matricula: 302229", CR, LF, 0 
-MsgFim db "Programa Encerrado", CR, LF, 0 
-
+;mensagens do programa
+MsgInicio 	db "Aluno: Gabriel Couto Domingues Matricula: 302229", CR, LF, 0 
+MsgFim 	db "Programa Encerrado", CR, LF, 0 
 MsgPedeArquivoSrc	db	"Nome do arquivo origem: ", 0
 MsgErroOpenFile		db	"Erro na abertura do arquivo.", CR, LF, 0
 MsgErroCreateFile	db	"Erro na criacao do arquivo.", CR, LF, 0
 MsgErroReadFile		db	"Erro na leitura do arquivo.", CR, LF, 0
 MsgErroWriteFile	db	"Erro na escrita do arquivo.", CR, LF, 0
 MsgCRLF				db	CR, LF, 0
+Msgarquivo 	db "Arquivo ",0
+Msgarquivo2 	db " - Total de ladrilhos por cor:",0
 
-Msgarquivo db "Arquivo ",0
-Msgarquivo2 db " - Total de ladrilhos por cor:",0
 
+String	db	MAXSTRING dup (?) ; Usado na funcao gets
+Ponto 	db 	0 ; para saber se tem ponto a string de entrada(booleano)
 
-MAXSTRING	equ		200
-String	db		MAXSTRING dup (?)		; Usado na funcao gets
-Ponto db 0 ; para saber se tem ponto a string de entrada
-
-Contadores dw 16 dup(?); contadores da parede
+Contadores 	dw 	16 dup(?); contadores da parede
 
 ; variaveis para converter numero para string
 string_contador db	10 dup (?)
@@ -49,15 +43,17 @@ sw_n	dw	0
 sw_f	db	0
 sw_m	dw	0
 
+
 ContAtual dw 0 
 
 cor_caixa db 0 
 
+;booleano para saber se tem que desenhar
+Desenhar dw 0 
 
+; tamanho do lado do quadrado
 lado_quadrado dw 0 
 
-; tamanho atual para desenhar linhas
-lado_linha dw 0 
 
 ; informacoes da posicao atual do quadrado
 x_atual dw 0
@@ -127,7 +123,7 @@ Amarelo db 'Amarelo – ',0
 tamarelo dw $-amarelo-1
 
 
-Desenhar dw 0;booleano para saber se tem que desenhar
+
 
 	.code
 	.startup
@@ -137,44 +133,38 @@ Inicio:
 	;limpa tela
 	call clrscr
 
-	;limpa dimensoes
-	mov string_linha,0
-	mov string_linha+1,0
-	mov string_coluna,0
-	mov string_coluna+1,0
-
-	;lado do quadrado versao sem bonus
-	mov lado_quadrado,24
-
-	mov quadrado_pos,0 
-
-
-	mov x_atual,pos_inicial_x
-	mov y_atual,pos_inicial_y
 
 	;coloca es = ds
 	mov	 	bx,ds
 	mov 	es,bx
 
-	;direcao
+	;direcao = 0
 	cld
 
 	;cursor no inicio
-	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
-	mov  dh, 0                 ;◄■■ SCREEN ROW 0 (Y).
-	call set_cursor             ;◄■■ SET CURSOR POSITION.
+	mov  dl, 0
+	mov  dh, 0
+	call set_cursor
 
-	;zera contadores
-	call limpa_contadores
 
 	;Mensagem de inicio
 	lea		bx,MsgInicio
 	call	printf_s
+ERRO_ARQUIVO:
+
+	;zera contadores
+	call limpa_contadores
+
+	;limpa string linha e coluna
+	mov string_linha,0
+	mov string_linha+1,0
+	mov string_coluna,0
+	mov string_coluna+1,0
 
 	;GetFileNameSrc();	// Pega o nome do arquivo de origem -> FileNameSrc
 	call	GetFileNameSrc
 
-
+	; verifica se foi digitado apenas enter
 	cmp string+1,0
 	jne continua0
 
@@ -184,27 +174,39 @@ Inicio:
 	.exit 0 
 
 
+
 continua0:
-	;if (fopen(FileNameSrc)) {
-	;	printf("Erro na abertura do arquivo.\r\n")
-	;	exit(1)
-	;}
-	;FileHandleSrc = BX
-	lea		dx,FileNameSrc
+	
+	lea		dx,FileNameSrc ;tenta abrir o arquivo
 	call	fopen
 	mov		FileHandleSrc,bx
-	jnc		le_dimensao 
+	jnc		cria_arquivo ; verifica se deu erro
 	lea		bx, MsgErroOpenFile
 	call	printf_s
-	;.exit	1
-	jmp inicio 
+	jmp 	ERRO_ARQUIVO 
+
+
+cria_arquivo:
+	
+	;GetFileNameDst();	// Pega o nome do arquivo de origem -> FileNameDst
+	call	GetFileNameDst
+
+	lea		dx,FileNameDst; tenta criar arquivo
+	call	fcreate
+	mov		FileHandleDst,bx
+	jnc		le_dimensao ; verifica se ocorreu erro
+	lea		bx, MsgErroCreateFile
+	call	printf_s
+	jmp 	ERRO_ARQUIVO
 
 le_dimensao:
+	; le primeiro caractere
 	mov		bx,FileHandleSrc
 	call	getChar
 	jc		erro_dimensao
 	mov 	string_linha,dl
 
+	; le segundo ou virgula
 	call	getChar
 	jc		erro_dimensao
 	cmp 	dl,','
@@ -217,72 +219,91 @@ le_dimensao:
 	je		achou_virgula
 
 achou_virgula:
+	; le primeiro char da segunda dimensao
 	call	getChar
 	jc		erro_dimensao
 	mov 	string_coluna,dl
 
+	; le segundo char ou CR
 	call	getChar
 	jc		erro_dimensao
-	cmp 	dl,' '
-	je		guarda_dimensao
 	cmp 	dl,CR
 	je		guarda_dimensao
 
 	mov 	string_coluna+1,dl
 	jmp 	guarda_dimensao
 
-	erro_dimensao:
+erro_dimensao:
 	lea		bx, MsgErroReadFile
 	call	printf_s
-	mov		bx,FileHandleSrc
+	mov		bx,FileHandleSrc ; fecha arquivos
 	call	fclose
-	;.exit	1
-	jmp inicio
+	mov		bx,FileHandleDst
+	call	fclose
+	jmp ERRO_ARQUIVO
 
 guarda_dimensao:
-	lea bx,string_linha 
+	lea bx,string_linha ; converte a string linha para numero
 	call atoi 
 	mov linha,ax
 
-	lea bx,string_coluna  
+	lea bx,string_coluna  ; converte a string coluna para numero
 	call atoi
 	mov coluna,ax
+
+	;calcula tam do quadrado
+	call tam_quadrado
+
+	; inicializa posicao do quadrado
+	mov quadrado_pos,0
+	mov x_atual,pos_inicial_x
+	mov y_atual,pos_inicial_y
+
 
 	;troca para modo grafico
 	mov ah,0
 	mov al,12h
 	int 10h
 
+
 	; coloca cursor no inico
-	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
-	mov  dh, 0                 ;◄■■ SCREEN ROW 0 (Y).
-	call set_cursor             ;◄■■ SET CURSOR POSITION.
+	mov  dl, 0             
+	mov  dh, 0               
+	call set_cursor
+
 	; mensagem de inicio
 	lea		bx,MsgInicio
 	call	printf_s
 
+	; desenha borda amarela
 	call desenha_caixa
-
 
 
 Continua1:
 
-	;do {
-	;	if ( (CF,DL,AX = getChar(FileHandleSrc)) ) {
-	;		printf("");
-	;		fclose(FileHandleSrc)
-	;		fclose(FileHandleDst)
-	;		exit(1)
-	;	}
-	mov		bx,FileHandleSrc
+	mov		bx,FileHandleSrc ; le caractere
 	call	getChar
-	jnc		Continua2
+	jnc		Continua2	; verifica erro
+
+	;limpa tela
+	call clrscr
+
+	;cursor no inicio
+	mov  dl, 0
+	mov  dh, 0
+	call set_cursor
+
+	;Mensagem de inicio
+	lea		bx,MsgInicio
+	call	printf_s
+
 	lea		bx, MsgErroReadFile
 	call	printf_s
-	mov		bx,FileHandleSrc
+	mov		bx,FileHandleSrc	; fecha rquivos
 	call	fclose
-	;.exit	1
-	jmp Inicio
+	mov		bx,FileHandleDst
+	call	fclose
+	jmp 	ERRO_ARQUIVO
 Continua2:
 
 	;	if (AX==0) break;
@@ -290,44 +311,19 @@ Continua2:
 	jz		continua3
 	
 	call 	incrementaContador
-	; desenhar ladrilhos vai aqui 
-	; desenhar ladrilhos vai aqui 
-	; desenhar ladrilhos vai aqui 
-	call desenha_quadrado
-	; desenhar ladrilhos vai aqui 
-	; desenhar ladrilhos vai aqui 
-	; desenhar ladrilhos vai aqui 
+	call 	desenha_quadrado
 	jmp 	continua1
 Continua3:
 	; fecha arquivo com as paredes
 	mov		bx,FileHandleSrc
 	call	fclose
 
+	mov lado_quadrado,24	; escreve dados das pardes na tela
 	call escreve_dados_parede
 	call escreve_contadores_tela
 
-	call waitchar
+	call waitchar	; espera usuario digitar enter para continuar
 	call clrscr
-
-	;GetFileNameDst();	// Pega o nome do arquivo de origem -> FileNameDst
-	call	GetFileNameDst
-
-	;if (fcreate(FileNameDst)) {
-	;	fclose(FileHandleSrc);
-	;	printf("Erro na criacao do arquivo.\r\n")
-	;	exit(1)
-	;}
-	;FileHandleDst = BX
-	lea		dx,FileNameDst
-	call	fcreate
-	mov		FileHandleDst,bx
-	jnc		Continua4
-	lea		bx, MsgErroCreateFile
-	call	printf_s
-	;.exit	1
-	jmp inicio
-
-Continua4:
 	
 	;	if ( setChar(FileHandleDst, DL) == 0) continue;
 	mov		bx,FileHandleDst
@@ -356,9 +352,29 @@ TerminouArquivo:
 	;.exit	0
 
 
+ tam_quadrado proc near
+	mov dx,0 ; divide 624 pela coluna
+	mov ax,624
+	div coluna  
+	mov bx,ax 
+ 
+	mov dx,0 ; divide 360 pela linha
+	mov ax,360
+	div linha
+
+	cmp ax,bx ; coloca o menor em lado_quadrado
+	jb colocaAX
+	mov ax,bx
+
+colocaAX:	
+	mov lado_quadrado,ax 
+
+	ret 
+ tam_quadrado endp
+
 		
 ;--------------------------------------------------------------------
-;Funcao Pede o nome do arquivo de origem salva-o em FileNameSrc
+;Funcao Pede o nome do arquivo de origem salva-o em FileNameSrc(copiado do moodle)
 ;--------------------------------------------------------------------
 GetFileNameSrc	proc	near
 	;printf("Nome do arquivo origem: ")
@@ -378,7 +394,7 @@ GetFileNameSrc	endp
 
 
 ;--------------------------------------------------------------------
-;Funcao Pede o nome do arquivo de destino salva-o em FileNameDst
+;Funcao Pede o nome do arquivo de destino salva-o em FileNameDst(funcao adaptada do moodle)
 ;--------------------------------------------------------------------
 GetFileNameDst	proc	near
 
@@ -390,21 +406,18 @@ GetFileNameDst	proc	near
 	mov 	di,bx
 	mov		cl,String+1
 	mov		ch,0
-	mov		ax,ds						; Ajusta ES=DS para poder usar o MOVSB
-	mov		es,ax
 	rep 	movsb
 
 	; agora coloca a extensao .rel
-	; para voltar na string
-	std
-	; para voltar para dentro da string
-	dec di 
+	std ; para voltar na string
+	dec di ; para voltar para dentro da string
 	mov		cl,String+1
 	mov		ch,0
 	mov 	al,'.'
 	repne 	scasb
-	cld 
-	inc di
+
+	cld ; retorna ao valor de antes
+	inc di ; para ficar em '.'
 
 	mov		byte ptr es:[di],'.'	
 	inc		di
@@ -421,76 +434,6 @@ GetFileNameDst	proc	near
 	ret
 GetFileNameDst	endp
 
-;--------------------------------------------------------------------
-;Função	Abre o arquivo cujo nome está no string apontado por DX
-;		boolean fopen(char *FileName -> DX)
-;Entra: DX -> ponteiro para o string com o nome do arquivo
-;Sai:   BX -> handle do arquivo
-;       CF -> 0, se OK
-;--------------------------------------------------------------------
-fopen	proc	near
-	mov		al,0
-	mov		ah,3dh
-	int		21h
-	mov		bx,ax
-	ret
-fopen	endp
-
-;--------------------------------------------------------------------
-;Função Cria o arquivo cujo nome está no string apontado por DX
-;		boolean fcreate(char *FileName -> DX)
-;Sai:   BX -> handle do arquivo
-;       CF -> 0, se OK
-;--------------------------------------------------------------------
-fcreate	proc	near
-	mov		cx,0
-	mov		ah,3ch
-	int		21h
-	mov		bx,ax
-	ret
-fcreate	endp
-
-;--------------------------------------------------------------------
-;Entra:	BX -> file handle
-;Sai:	CF -> "0" se OK
-;--------------------------------------------------------------------
-fclose	proc	near
-	mov		ah,3eh
-	int		21h
-	ret
-fclose	endp
-
-;--------------------------------------------------------------------
-;Função	Le um caractere do arquivo identificado pelo HANLDE BX
-;		getChar(handle->BX)
-;Entra: BX -> file handle
-;Sai:   dl -> caractere
-;		AX -> numero de caracteres lidos
-;		CF -> "0" se leitura ok
-;--------------------------------------------------------------------
-getChar	proc	near
-	mov		ah,3fh
-	mov		cx,1
-	lea		dx,FileBuffer
-	int		21h
-	mov		dl,FileBuffer
-	ret
-getChar	endp
-		
-;--------------------------------------------------------------------
-;Entra: BX -> file handle
-;       dl -> caractere
-;Sai:   AX -> numero de caracteres escritos
-;		CF -> "0" se escrita ok
-;--------------------------------------------------------------------
-setChar	proc	near
-	mov		ah,40h
-	mov		cx,1
-	mov		FileBuffer,dl
-	lea		dx,FileBuffer
-	int		21h
-	ret
-setChar	endp	
 
 ; em cx o numero de caracteres
 ; bx endereco da string
@@ -504,7 +447,7 @@ setString	endp
 
 ;
 ;--------------------------------------------------------------------
-;Funcao Le um string do teclado e coloca no buffer apontado por BX
+;Funcao Le um string do teclado e coloca no buffer apontado por BX(adaptada de funcao no moodle)
 ;		gets(char *s -> bx)
 ;--------------------------------------------------------------------
 gets	proc	near
@@ -521,21 +464,17 @@ gets	proc	near
 	lea		di,String+2				; inicializa registrador para percorrer	
 	mov		cl,String+1				; inicializa contador
 	mov		ch,0
-	mov		ax,ds						; Ajusta ES=DS 
-	mov		es,ax
 	mov 	al,'.'						; caractere para buscar
 	; testa se acha ponto
 	repne 	scasb
-	jne 	continuaGets0
-	inc 	ponto 
+	jne 	continuaGets0 ; se nao achou continua
+	inc 	ponto ;coloca 1 no booleano
 
 	continuaGets0:
 	lea		si,String+2					; Copia do buffer de teclado para o FileName
 	mov 	di,bx
 	mov		cl,String+1
 	mov		ch,0
-	mov		ax,ds						; Ajusta ES=DS para poder usar o MOVSB
-	mov		es,ax
 	rep 	movsb
 
 	cmp 	ponto,0
@@ -562,49 +501,29 @@ gets	proc	near
 gets	endp
 
 
-;--------------------------------------------------------------------
-;Função Escrever um string na tela
-;		printf_s(char *s -> BX)
-;--------------------------------------------------------------------
-printf_s	proc	near
-	mov		dl,[bx]
-	cmp		dl,0
-	je		ps_1
-
-	push	bx
-	mov		ah,2
-	int		21H
-	pop		bx
-
-	inc		bx		
-	jmp		printf_s
-		
-ps_1:
-	ret
-printf_s	endp
-
-;Limpa tela
+;Limpa tela e troca par ao modo texto
 clrscr proc near
+	; troca para o modo texto
 	mov ah,0
 	mov al,07h
 	int 10h
 
-
-    mov ax,0700h  ; function 07, AL=0 means scroll whole window
-    mov bh,07h    ; character attribute = white on black
-    mov cx,0000h  ; row = 0, col = 0
-    mov dx,184fh  ; row = 24 (0x18), col = 79 (0x4f)
-    int 10h        ; call BIOS video interrupt
+	; limpa tela
+    mov ax,0700h
+    mov bh,07h 
+    mov cx,0000h 
+    mov dx,184fh 
+    int 10h
 
 	ret 
 clrscr endp
 
 ;coloca o cursor na posicao
-;INPUT : DL=X, DH=Y.
+;DL=X, DH=Y.
 set_cursor proc
-      mov  ah, 2                  ;SERVICE TO SET CURSOR POSITION.
-      mov  bh, 0                  ;VIDEO PAGE.
-      int  10h                    ;BIOS SERVICES.
+      mov  ah, 2
+      mov  bh, 0
+      int  10h
       ret
 set_cursor endp
 
@@ -613,16 +532,16 @@ limpa_contadores proc
 	lea di,contadores
 	mov cx,16
 	mov ax,0
-
 	rep stosw
 	ret
 limpa_contadores endp
 
 ; informacao da parede em al
 incrementaContador proc near 
-	mov desenhar,0
 
-	cmp dl,'0'
+	mov desenhar,0; reseta booleano
+
+	cmp dl,'0'; verifica se caractere eh numero
 	jb fimic
 	cmp dl,'9'
 	ja ic0
@@ -630,15 +549,15 @@ incrementaContador proc near
 	sub dl,'0'
 	inc desenhar 
 
-	mov bl,dl
+	mov bl,dl	; incrementa contador
 	mov bh,0
 	add bx,bx
 	add WORD ptr [bx+contadores],1
 
 	jmp fimic
 
-	ic0:
-	cmp dl,'A'
+ic0:
+	cmp dl,'A' ; verifica se eh letra vlida
 	jb fimic
 	cmp dl,'E'
 	ja fimic
@@ -646,12 +565,12 @@ incrementaContador proc near
 	sub dl,'A'-10
 	inc desenhar 
 
-	mov bl,dl
+	mov bl,dl ; incrementa contador
 	mov bh,0
 	add bx,bx
 	add WORD ptr [bx+contadores],1
 
-	fimic:
+fimic:
 	mov cor_atual,0
 	mov cor_atual,dl
 	ret 
@@ -790,157 +709,6 @@ escreveContador endp
 
 
 ;--------------------------------------------------------------------
-;Função:Converte um ASCII-DECIMAL para HEXA
-;Entra: (S) -> DS:BX -> Ponteiro para o string de origem
-;Sai:	(A) -> AX -> Valor "Hex" resultante
-;Algoritmo:
-;	A = 0;
-;	while (*S!='\0') {
-;		A = 10 * A + (*S - '0')
-;		++S;
-;	}
-;	return
-;--------------------------------------------------------------------
-atoi	proc near
-
-		; A = 0;
-		mov		ax,0
-		
-atoi_2:
-		; while (*S!='\0') {
-		cmp		byte ptr[bx], 0
-		jz		atoi_1
-
-		; 	A = 10 * A
-		mov		cx,10
-		mul		cx
-
-		; 	A = A + *S
-		mov		ch,0
-		mov		cl,[bx]
-		add		ax,cx
-
-		; 	A = A - '0'
-		sub		ax,'0'
-
-		; 	++S
-		inc		bx
-		
-		;}
-		jmp		atoi_2
-
-atoi_1:
-		; return
-		ret
-
-atoi	endp
-
-
-;--------------------------------------------------------------------
-;Função: Converte um inteiro (n) para (string)
-;		 sprintf(string, "%d", n)
-;
-;void sprintf_w(char *string->BX, WORD n->AX) {
-;	k=5;
-;	m=10000;
-;	f=0;
-;	do {
-;		quociente = n / m : resto = n % m;	// Usar instrução DIV
-;		if (quociente || f) {
-;			*string++ = quociente+'0'
-;			f = 1;
-;		}
-;		n = resto;
-;		m = m/10;
-;		--k;
-;	} while(k);
-;
-;	if (!f)
-;		*string++ = '0';
-;	*string = '\0';
-;}
-;
-;Associação de variaveis com registradores e memória
-;	string	-> bx
-;	k		-> cx
-;	m		-> sw_m dw
-;	f		-> sw_f db
-;	n		-> sw_n	dw
-;--------------------------------------------------------------------
-
-sprintf_w	proc	near
-
-;void sprintf_w(char *string, WORD n) {
-	mov		sw_n,ax
-
-;	k=5;
-	mov		cx,5
-	
-;	m=10000;
-	mov		sw_m,10000
-	
-;	f=0;
-	mov		sw_f,0
-	
-;	do {
-sw_do:
-
-;		quociente = n / m : resto = n % m;	// Usar instrução DIV
-	mov		dx,0
-	mov		ax,sw_n
-	div		sw_m
-	
-;		if (quociente || f) {
-;			*string++ = quociente+'0'
-;			f = 1;
-;		}
-	cmp		al,0
-	jne		sw_store
-	cmp		sw_f,0
-	je		sw_continue
-sw_store:
-	add		al,'0'
-	mov		[bx],al
-	inc		bx
-	
-	mov		sw_f,1
-sw_continue:
-	
-;		n = resto;
-	mov		sw_n,dx
-	
-;		m = m/10;
-	mov		dx,0
-	mov		ax,sw_m
-	mov		bp,10
-	div		bp
-	mov		sw_m,ax
-	
-;		--k;
-	dec		cx
-	
-;	} while(k);
-	cmp		cx,0
-	jnz		sw_do
-
-;	if (!f)
-;		*string++ = '0';
-	cmp		sw_f,0
-	jnz		sw_continua2
-	mov		[bx],'0'
-	inc		bx
-sw_continua2:
-
-
-;	*string = '\0';
-	mov		byte ptr[bx],0
-		
-;}
-	ret
-		
-sprintf_w	endp
-
-;--------------------------------------------------------------------
 ;Função: Escrever um string em arquivo
 ; 	recebe em bx o endereco da string
 ;--------------------------------------------------------------------
@@ -1050,35 +818,30 @@ loop_escreve_contadores_tela:
 	ret 
 escreve_contadores_tela endp 
 
+; desenha caixa 
 desenha_caixa proc near
 	mov cor_caixa,0eh
 
-	mov dx,16    ;top edge
-    mov di,640        ;control y loop
 
-	mov cx,0      ;left edge
-    mov si,640        ;control x loop
+	mov dx,16   
+	mov cx,0      
+    mov si,640      
 	call linha_horizontal
 
-	mov dx,16      ;top edge
-    mov di,380        ;control y loop
 
-	mov cx,0      ;left edge
-    mov si,380       ;control x loop
+	mov dx,16     
+    mov di,380     
+	mov cx,0         
 	call linha_vertical
 
-	mov dx,396     ;top edge
-    mov di,640      ;control y loop
-
-	mov cx,0     ;left edge
-    mov si,640       ;control x loop
+	mov dx,396        
+	mov cx,0    
+    mov si,640       
 	call linha_horizontal
 
-	mov dx,16     ;top edge
-    mov di,380      ;control y loop
-
-	mov cx,639      ;left edge
-    mov si,380        ;control x loop
+	mov dx,16     
+    mov di,380     
+	mov cx,639             
 	call linha_vertical
 
 	ret 
@@ -1090,14 +853,14 @@ desenha_caixa endp
 ; |
 ; |
 desenha_quadrado proc near
-	cmp desenhar,0
+	cmp desenhar,0	; verifica se pode senhar
 	je fim_desenha_quadrado
 
-	mov bx,coluna
+	mov bx,coluna	; verifica se chegou no fim da linha
 	cmp quadrado_pos,bx
 	jne continua_desenha_quadrado
 	
-	mov quadrado_pos,0
+	mov quadrado_pos,0	; caso tenha chegado no fim da linha
 	mov x_atual,pos_inicial_x
 	mov bx,lado_quadrado
 	add y_atual,bx
@@ -1105,12 +868,10 @@ desenha_quadrado proc near
 continua_desenha_quadrado:
 	inc quadrado_pos 
 
-	call rejunte
+	call desenha_rejunte	; desenha quadrado
 	call DrawSquare
 
-	;mov x_atual,pos_inicial_x
-	;mov bx,lado_quadrado
-	;add y_atual,bx
+
 	mov bx,lado_quadrado
 	add x_atual,bx 
 
@@ -1159,7 +920,7 @@ linha_horizontal_loop:
     push di
 
     mov bh,0h                   ;video page
-	mov al,0eh
+	mov al,cor_caixa
     mov ah,0ch                  ;draw pixel function
     int 10h                     ;BIOS video interrupt
 
@@ -1220,6 +981,40 @@ SquareXlooprejunte:
 rejunte endp
 
 
+; desenha rejunte
+desenha_rejunte proc near
+	mov cor_caixa,0fh
+
+	mov dx,y_atual
+	mov cx,x_atual         
+    mov si,lado_quadrado      
+	call linha_horizontal
+
+
+	mov dx,y_atual    
+    mov di,lado_quadrado     
+	mov cx,x_atual           
+	call linha_vertical
+
+	mov dx,y_atual
+	add dx,lado_quadrado
+	sub dx,1       
+	mov cx,x_atual  
+    mov si,lado_quadrado       
+	call linha_horizontal
+
+	mov dx,y_atual     
+    mov di,lado_quadrado    
+	mov cx,x_atual             
+	add cx,lado_quadrado
+	sub cx,1  
+	call linha_vertical
+
+	ret 
+
+desenha_rejunte endp
+
+
 
 
 DrawSquare proc near
@@ -1268,9 +1063,257 @@ SquareXloop:
 	ret 
 DrawSquare endp
 
+
+
+;--------------------------------------------------------------------
+;Função:Converte um ASCII-DECIMAL para HEXA(copiada do moodle)
+;Entra: (S) -> DS:BX -> Ponteiro para o string de origem
+;Sai:	(A) -> AX -> Valor "Hex" resultante
+;Algoritmo:
+;	A = 0;
+;	while (*S!='\0') {
+;		A = 10 * A + (*S - '0')
+;		++S;
+;	}
+;	return
+;--------------------------------------------------------------------
+atoi	proc near
+
+		; A = 0;
+		mov		ax,0
+		
+atoi_2:
+		; while (*S!='\0') {
+		cmp		byte ptr[bx], 0
+		jz		atoi_1
+
+		; 	A = 10 * A
+		mov		cx,10
+		mul		cx
+
+		; 	A = A + *S
+		mov		ch,0
+		mov		cl,[bx]
+		add		ax,cx
+
+		; 	A = A - '0'
+		sub		ax,'0'
+
+		; 	++S
+		inc		bx
+		
+		;}
+		jmp		atoi_2
+
+atoi_1:
+		; return
+		ret
+
+atoi	endp
+
+
+;--------------------------------------------------------------------
+;Função: Converte um inteiro (n) para (string)(copiada do moodle)
+;		 sprintf(string, "%d", n)
+;
+;void sprintf_w(char *string->BX, WORD n->AX) {
+;	k=5;
+;	m=10000;
+;	f=0;
+;	do {
+;		quociente = n / m : resto = n % m;	// Usar instrução DIV
+;		if (quociente || f) {
+;			*string++ = quociente+'0'
+;			f = 1;
+;		}
+;		n = resto;
+;		m = m/10;
+;		--k;
+;	} while(k);
+;
+;	if (!f)
+;		*string++ = '0';
+;	*string = '\0';
+;}
+;
+;Associação de variaveis com registradores e memória
+;	string	-> bx
+;	k		-> cx
+;	m		-> sw_m dw
+;	f		-> sw_f db
+;	n		-> sw_n	dw
+;--------------------------------------------------------------------
+
+sprintf_w	proc	near
+
+;void sprintf_w(char *string, WORD n) {
+	mov		sw_n,ax
+
+;	k=5;
+	mov		cx,5
+	
+;	m=10000;
+	mov		sw_m,10000
+	
+;	f=0;
+	mov		sw_f,0
+	
+;	do {
+sw_do:
+
+;		quociente = n / m : resto = n % m;	// Usar instrução DIV
+	mov		dx,0
+	mov		ax,sw_n
+	div		sw_m
+	
+;		if (quociente || f) {
+;			*string++ = quociente+'0'
+;			f = 1;
+;		}
+	cmp		al,0
+	jne		sw_store
+	cmp		sw_f,0
+	je		sw_continue
+sw_store:
+	add		al,'0'
+	mov		[bx],al
+	inc		bx
+	
+	mov		sw_f,1
+sw_continue:
+	
+;		n = resto;
+	mov		sw_n,dx
+	
+;		m = m/10;
+	mov		dx,0
+	mov		ax,sw_m
+	mov		bp,10
+	div		bp
+	mov		sw_m,ax
+	
+;		--k;
+	dec		cx
+	
+;	} while(k);
+	cmp		cx,0
+	jnz		sw_do
+
+;	if (!f)
+;		*string++ = '0';
+	cmp		sw_f,0
+	jnz		sw_continua2
+	mov		[bx],'0'
+	inc		bx
+sw_continua2:
+
+
+;	*string = '\0';
+	mov		byte ptr[bx],0
+		
+;}
+	ret
+		
+sprintf_w	endp
+
+
+
+
+
+;--------------------------------------------------------------------
+;Função Escrever um string na tela (copiada dos arquivos no moodle)
+;		printf_s(char *s -> BX)
+;--------------------------------------------------------------------
+printf_s	proc	near
+	mov		dl,[bx]
+	cmp		dl,0
+	je		printf_s_fim
+
+	push	bx
+	mov		ah,2
+	int		21H
+	pop		bx
+
+	inc		bx		
+	jmp		printf_s
+		
+printf_s_fim:
+	ret
+printf_s	endp
+
+
+
+;--------------------------------------------------------------------
+;Função	Abre o arquivo cujo nome está no string apontado por DX(funcao do moodle)
+;		boolean fopen(char *FileName -> DX)
+;Entra: DX -> ponteiro para o string com o nome do arquivo
+;Sai:   BX -> handle do arquivo
+;       CF -> 0, se OK
+;--------------------------------------------------------------------
+fopen	proc	near
+	mov		al,0
+	mov		ah,3dh
+	int		21h
+	mov		bx,ax
+	ret
+fopen	endp
+
+;--------------------------------------------------------------------
+;Função Cria o arquivo cujo nome está no string apontado por DX(funcao copiada do moodle)
+;		boolean fcreate(char *FileName -> DX)
+;Sai:   BX -> handle do arquivo
+;       CF -> 0, se OK
+;--------------------------------------------------------------------
+fcreate	proc	near
+	mov		cx,0
+	mov		ah,3ch
+	int		21h
+	mov		bx,ax
+	ret
+fcreate	endp
+
+;--------------------------------------------------------------------
+;Entra:	BX -> file handle(funcao copiada do moodle)
+;Sai:	CF -> "0" se OK
+;--------------------------------------------------------------------
+fclose	proc	near
+	mov		ah,3eh
+	int		21h
+	ret
+fclose	endp
+
+;--------------------------------------------------------------------
+;Função	Le um caractere do arquivo identificado pelo HANLDE BX(copiado do moodle)
+;		getChar(handle->BX)
+;Entra: BX -> file handle
+;Sai:   dl -> caractere
+;		AX -> numero de caracteres lidos
+;		CF -> "0" se leitura ok
+;--------------------------------------------------------------------
+getChar	proc	near
+	mov		ah,3fh
+	mov		cx,1
+	lea		dx,FileBuffer
+	int		21h
+	mov		dl,FileBuffer
+	ret
+getChar	endp
+		
+;--------------------------------------------------------------------
+;Entra: BX -> file handle (copiada do moodle)
+;       dl -> caractere
+;Sai:   AX -> numero de caracteres escritos
+;		CF -> "0" se escrita ok
+;--------------------------------------------------------------------
+setChar	proc	near
+	mov		ah,40h
+	mov		cx,1
+	mov		FileBuffer,dl
+	lea		dx,FileBuffer
+	int		21h
+	ret
+setChar	endp	
+
 ;--------------------------------------------------------------------
 		end
 ;--------------------------------------------------------------------
-
-
-	
