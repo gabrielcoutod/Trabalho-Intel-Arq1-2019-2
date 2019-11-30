@@ -869,7 +869,7 @@ continua_desenha_quadrado:
 	inc quadrado_pos 
 
 	call desenha_rejunte	; desenha quadrado
-	call DrawSquare
+	call interior_quadrado
 
 
 	mov bx,lado_quadrado
@@ -887,20 +887,11 @@ desenha_quadrado endp
 linha_vertical proc near
 
 linha_vertical_loop:
-    push cx                     ;I don't know if these 4 pushes are necessary...
-    push dx
-    push si
-    push di
 
     mov bh,0h                   ;video page
 	mov al,cor_caixa
     mov ah,0ch                  ;draw pixel function
     int 10h                     ;BIOS video interrupt
-
-    pop di                      ;... or these 4 matching pops are necessary
-    pop si                      ;depends on whether int 10h func corrupts them
-    pop dx
-    pop cx
 
     inc dx                      ;advance X position
     dec di                      ;count side of square to control the loop
@@ -909,25 +900,16 @@ linha_vertical_loop:
 	ret 
 linha_vertical endp
 
-; recebe em cx colunaa do pixel
+; recebe em cx coluna do pixel
 ; recebe em dx linha do pixel
 ; I----
 linha_horizontal proc near
 linha_horizontal_loop:
-    push cx                     ;I don't know if these 4 pushes are necessary...
-    push dx
-    push si
-    push di
 
     mov bh,0h                   ;video page
 	mov al,cor_caixa
     mov ah,0ch                  ;draw pixel function
     int 10h                     ;BIOS video interrupt
-
-    pop di                      ;... or these 4 matching pops are necessary
-    pop si                      ;depends on whether int 10h func corrupts them
-    pop dx
-    pop cx
 
     inc cx                      ;advance X position
     dec si                      ;count side of square to control the loop
@@ -1017,23 +999,17 @@ desenha_rejunte endp
 
 
 
-DrawSquare proc near
-    ;mov dx,[Player1Drawy]       ;top edge
-    ;mov di,[SideLength]         ;control y loop
+interior_quadrado proc near
 	mov dx,y_atual      ;top edge
 	add dx,1
     mov di,lado_quadrado        ;control y loop
 	sub di,2
-    ;mov di,14h                  ;or this, if the side length is fixed
 
 SquareYloop:
-    ;mov cx,[Player1Drawx]       ;left edge
-    ;mov si,[SideLength]         ;control x loop
 	mov cx,x_atual      ;left edge
 	add cx,1
     mov si,lado_quadrado        ;control x loop
 	sub si,2
-    ;mov si,14h                  ;or this, if the side length is fixed
 
 SquareXloop:
     push cx                     ;I don't know if these 4 pushes are necessary...
@@ -1061,7 +1037,7 @@ SquareXloop:
     jne SquareYloop             ;next row
 
 	ret 
-DrawSquare endp
+interior_quadrado endp
 
 
 
