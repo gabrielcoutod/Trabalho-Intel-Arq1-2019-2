@@ -6,8 +6,8 @@
 ; CONSTANTES 
 CR		equ		0dh ; CARRIAGE RETURN
 LF		equ		0ah ; LINE FEED
-pos_inicial_x equ 	8 ; posicao inicial para desenhar parede
-pos_inicial_y equ 	26 ; poiscao inicial para desenhar parede
+pos_inicial_x equ 	8 ; posicao inicial x para desenhar parede
+pos_inicial_y equ 	26 ; poiscao inicial y para desenhar parede
 MAXSTRING	equ		200 ; string maxima
 
 	.data
@@ -19,19 +19,19 @@ FileHandleDst	dw		0				; Handler do arquivo destino
 FileBuffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
 
 ;mensagens do programa
-MsgInicio 	db "Aluno: Gabriel Couto Domingues Matricula: 302229", CR, LF, 0 
-MsgFim 	db "Programa Encerrado", CR, LF, 0 
+MsgInicio 			db  "Aluno: Gabriel Couto Domingues Matricula: 302229", CR, LF, 0 
+MsgFim 				db  "Programa Encerrado", CR, LF, 0 
 MsgPedeArquivoSrc	db	"Nome do arquivo origem: ", 0
 MsgErroOpenFile		db	"Erro na abertura do arquivo.", CR, LF, 0
 MsgErroCreateFile	db	"Erro na criacao do arquivo.", CR, LF, 0
 MsgErroReadFile		db	"Erro na leitura do arquivo.", CR, LF, 0
 MsgErroWriteFile	db	"Erro na escrita do arquivo.", CR, LF, 0
 MsgCRLF				db	CR, LF, 0
-Msgarquivo 	db "Arquivo ",0
-Msgarquivo2 	db " - Total de ladrilhos por cor:",0
+Msgarquivo 			db  "Arquivo ",0
+Msgarquivo2 		db  " - Total de ladrilhos por cor:",0
 
 
-String	db	MAXSTRING dup (?) ; Usado na funcao gets
+String	db	MAXSTRING dup (?) ; buffer Usado na funcao gets
 Ponto 	db 	0 ; para saber se tem ponto a string de entrada(booleano)
 
 Contadores 	dw 	16 dup(?); contadores da parede
@@ -43,9 +43,10 @@ sw_n	dw	0
 sw_f	db	0
 sw_m	dw	0
 
-
+; contador atual na escrita
 ContAtual dw 0 
 
+; cor da caixa(rejunte)
 cor_caixa db 0 
 
 ;booleano para saber se tem que desenhar
@@ -63,64 +64,37 @@ y_atual dw 0
 ; para saber quando trocar de linha
 quadrado_pos dw 0 
 
-
+; posicao x e y dos contadores de ladrilhos
 pos_x_contador db 0
 pos_y_contador db 0
 
-; informacoes da parede
+; informacoes da parede em string 
 string_linha db 0,0,0
-
 string_coluna db 0,0,0
 
+; cor do ladrilho atual
 cor_atual db 0 
 
+; tam da parede
 linha dw 0
 coluna dw 0 
 
+;strings para escrever no arquivo
 Preto db 'Preto – ',0
-tPreto dw $-Preto -1
-
 Azul db 'Azul – ',0
-tAzul dw $-Azul -1
-
 Verde db 'Verde – ',0
-tVerde dw $-Verde -1
-
 Ciano db 'Ciano – ',0
-tCiano dw $-Ciano -1
-
 Vermelho db 'Vermelho – ',0
-tVermelho dw $-Vermelho -1
-
 Magenta db 'Magenta – ',0
-tMagenta dw $-Magenta -1
-
 Marrom db 'Marrom – ',0
-tMarrom  dw $-Marrom -1
-
 Cinza_claro db 'Cinza claro – ',0
-tCinza_claro dw $-Cinza_claro -1
-
 Cinza_escuro db 'Cinza escuro –' ,0
-tCinza_escuro dw $-Cinza_escuro -1
-
 Azul_claro db 'Azul claro – ',0
-tAzul_claro dw $-Azul_claro-1 
-
 Verde_claro db 'Verde claro – ',0
-tVerde_claro dw $-Verde_claro-1 
-
 Ciano_claro db 'Ciano claro – ',0
-tCiano_claro dw $-Ciano_claro-1
-
 Vermelho_claro db'Vermelho claro – ',0
-tVermelho_claro dw $-Vermelho_claro-1
-
 Magenta_claro db 'Magenta claro – ',0
-tMagenta_claro dw $-Magenta_claro-1
-
 Amarelo db 'Amarelo – ',0
-tamarelo dw $-amarelo-1
 
 
 
@@ -195,6 +169,9 @@ cria_arquivo:
 	call	fcreate
 	mov		FileHandleDst,bx
 	jnc		le_dimensao ; verifica se ocorreu erro
+
+	mov		bx,FileHandleSrc ; fecha arquivos
+	call	fclose
 	lea		bx, MsgErroCreateFile
 	call	printf_s
 	jmp 	ERRO_ARQUIVO
@@ -240,7 +217,7 @@ erro_dimensao:
 	call	fclose
 	mov		bx,FileHandleDst
 	call	fclose
-	jmp ERRO_ARQUIVO
+	jmp 	ERRO_ARQUIVO
 
 guarda_dimensao:
 	lea bx,string_linha ; converte a string linha para numero
@@ -318,355 +295,116 @@ Continua3:
 	mov		bx,FileHandleSrc
 	call	fclose
 
-	mov lado_quadrado,24	; escreve dados das pardes na tela
+	mov lado_quadrado,24	; escreve dados das paredes na tela
 	call escreve_dados_parede
 	call escreve_contadores_tela
 
 	call waitchar	; espera usuario digitar enter para continuar
 	call clrscr
 	
-	;	if ( setChar(FileHandleDst, DL) == 0) continue;
-	mov		bx,FileHandleDst
+	mov		bx,FileHandleDst	; escreve contadores
 	call	escreveContadores
 	jnc		TerminouArquivo
+	
+	; erro escrita
+	;cursor no inicio
+	mov  dl, 0
+	mov  dh, 0
+	call set_cursor
 
-	;	printf ("Erro na escrita....;)")
-	;	fclose(FileHandleSrc)
-	;	fclose(FileHandleDst)
-	;	exit(1)
+	;Mensagem de inicio
+	lea		bx,MsgInicio
+	call	printf_s
+
+
 	lea		bx, MsgErroWriteFile
 	call	printf_s
 	mov		bx,FileHandleDst		; Fecha arquivo destino
 	call	fclose
-	;.exit 1
-	jmp Inicio
-	
-	;} while(1);
+	jmp 	ERRO_ARQUIVO
 
 TerminouArquivo:
 	;fclose(FileHandleDst)
-	;exit(0)
 	mov		bx,FileHandleDst	; Fecha arquivo destino
 	call	fclose
-	jmp inicio 
-	;.exit	0
-
-
- tam_quadrado proc near
-	mov dx,0 ; divide 624 pela coluna
-	mov ax,624
-	div coluna  
-	mov bx,ax 
- 
-	mov dx,0 ; divide 360 pela linha
-	mov ax,360
-	div linha
-
-	cmp ax,bx ; coloca o menor em lado_quadrado
-	jb colocaAX
-	mov ax,bx
-
-colocaAX:	
-	mov lado_quadrado,ax 
-
-	ret 
- tam_quadrado endp
-
-		
-;--------------------------------------------------------------------
-;Funcao Pede o nome do arquivo de origem salva-o em FileNameSrc(copiado do moodle)
-;--------------------------------------------------------------------
-GetFileNameSrc	proc	near
-	;printf("Nome do arquivo origem: ")
-	lea		bx, MsgPedeArquivoSrc
-	call	printf_s
-
-	;gets(FileNameSrc);
-	lea		bx, FileNameSrc
-	call	gets
-
-	;printf("\r\n")
-	lea		bx, MsgCRLF
-	call	printf_s
+	jmp 	inicio 
 	
-	ret
-GetFileNameSrc	endp
-
-
-;--------------------------------------------------------------------
-;Funcao Pede o nome do arquivo de destino salva-o em FileNameDst(funcao adaptada do moodle)
-;--------------------------------------------------------------------
-GetFileNameDst	proc	near
-
-	;gets(FileNameDst);
-	lea		bx, FileNameDst
-
-
-	lea		si,FileNameSrc					; Copia do buffer de teclado para o FileName
-	mov 	di,bx
-	mov		cl,String+1
-	mov		ch,0
-	rep 	movsb
-
-	; agora coloca a extensao .rel
-	std ; para voltar na string
-	dec di ; para voltar para dentro da string
-	mov		cl,String+1
-	mov		ch,0
-	mov 	al,'.'
-	repne 	scasb
-
-	cld ; retorna ao valor de antes
-	inc di ; para ficar em '.'
-
-	mov		byte ptr es:[di],'.'	
-	inc		di
-	mov		byte ptr es:[di],'r'
-	inc		di	
-	mov		byte ptr es:[di],'e'	
-	inc		di
-	mov		byte ptr es:[di],'l'	
-	inc		di
-
-	
-	mov		byte ptr es:[di],0			; Coloca marca de fim de string
-
-	ret
-GetFileNameDst	endp
-
-
-; em cx o numero de caracteres
-; bx endereco da string
-setString	proc	near
-	mov 	dx,bx 
-	mov 	bx,FileHandleDst
-	mov		ah,40h
-	int		21h
-	ret
-setString	endp	
-
-;
-;--------------------------------------------------------------------
-;Funcao Le um string do teclado e coloca no buffer apontado por BX(adaptada de funcao no moodle)
-;		gets(char *s -> bx)
-;--------------------------------------------------------------------
-gets	proc	near
-	push	bx
-
-	mov		ah,0ah						; Lê uma linha do teclado
-	lea		dx,String
-	mov		byte ptr String, MAXSTRING-4	; 2 caracteres no inicio e um eventual CR LF no final
-	int		21h
-
-	pop 	bx
-
-	mov 	ponto,0					; inicializa ponto (booleano)
-	lea		di,String+2				; inicializa registrador para percorrer	
-	mov		cl,String+1				; inicializa contador
-	mov		ch,0
-	mov 	al,'.'						; caractere para buscar
-	; testa se acha ponto
-	repne 	scasb
-	jne 	continuaGets0 ; se nao achou continua
-	inc 	ponto ;coloca 1 no booleano
-
-	continuaGets0:
-	lea		si,String+2					; Copia do buffer de teclado para o FileName
-	mov 	di,bx
-	mov		cl,String+1
-	mov		ch,0
-	rep 	movsb
-
-	cmp 	ponto,0
-	jne 	coloca0
-
-	;incrementa numero de caracteres
-	add 	string+1,4
-
-	; coloca .par 
-	mov		byte ptr es:[di],'.'	
-	inc		di
-	mov		byte ptr es:[di],'p'
-	inc		di	
-	mov		byte ptr es:[di],'a'	
-	inc		di
-	mov		byte ptr es:[di],'r'	
-	inc		di
-
-	coloca0:
-	mov		byte ptr es:[di],0			; Coloca marca de fim de string
-
-
-	ret
-gets	endp
-
-
-;Limpa tela e troca par ao modo texto
-clrscr proc near
-	; troca para o modo texto
-	mov ah,0
-	mov al,07h
-	int 10h
-
-	; limpa tela
-    mov ax,0700h
-    mov bh,07h 
-    mov cx,0000h 
-    mov dx,184fh 
-    int 10h
-
-	ret 
-clrscr endp
-
-;coloca o cursor na posicao
-;DL=X, DH=Y.
-set_cursor proc
-      mov  ah, 2
-      mov  bh, 0
-      int  10h
-      ret
-set_cursor endp
-
-;procedimento para zerar contadores
-limpa_contadores proc
-	lea di,contadores
-	mov cx,16
-	mov ax,0
-	rep stosw
-	ret
-limpa_contadores endp
-
-; informacao da parede em al
-incrementaContador proc near 
-
-	mov desenhar,0; reseta booleano
-
-	cmp dl,'0'; verifica se caractere eh numero
-	jb fimic
-	cmp dl,'9'
-	ja ic0
-
-	sub dl,'0'
-	inc desenhar 
-
-	mov bl,dl	; incrementa contador
-	mov bh,0
-	add bx,bx
-	add WORD ptr [bx+contadores],1
-
-	jmp fimic
-
-ic0:
-	cmp dl,'A' ; verifica se eh letra vlida
-	jb fimic
-	cmp dl,'E'
-	ja fimic
-
-	sub dl,'A'-10
-	inc desenhar 
-
-	mov bl,dl ; incrementa contador
-	mov bh,0
-	add bx,bx
-	add WORD ptr [bx+contadores],1
-
-fimic:
-	mov cor_atual,0
-	mov cor_atual,dl
-	ret 
-
-incrementaContador endp 
 
 ; escreve contadores handle em bx
 escreveContadores proc near
 	mov		contAtual,0
 
 	lea 	bx,Preto
-	mov 	cx,tPreto
 	call 	printf_f
 	jnc		ec0
 	ret
 ec0:
 	lea 	bx,Azul 
-	mov 	cx,tAzul
 	call 	printf_f
 	jnc		ec1
 	ret
 ec1:
 	lea 	bx,Verde 
-	mov 	cx,tVerde
 	call 	printf_f
 	jnc		ec2
 	ret
 ec2:
 	lea 	bx,Ciano 
-	mov 	cx,tCiano
 	call 	printf_f
 	jnc		ec3
 	ret
 ec3:
 	lea 	bx,Vermelho
-	mov 	cx,tVermelho
 	call 	printf_f
 	jnc		ec4
 	ret
 ec4:
 	lea 	bx,Magenta
-	mov 	cx,tMagenta
 	call 	printf_f
 	jnc		ec5
 	ret
 ec5:
 	lea 	bx,Marrom
-	mov 	cx,tMarrom
 	call 	printf_f
 	jnc		ec6
 	ret
 ec6:
 	lea 	bx,Cinza_claro
-	mov 	cx,tCinza_escuro
 	call 	printf_f
 	jnc		ec7
 	ret
 ec7:
 	lea 	bx,Cinza_escuro
-	mov 	cx,tCinza_escuro
 	call 	printf_f
 	jnc		ec8
 	ret
 ec8:
 	lea 	bx,Azul_claro
-	mov 	cx,tAzul_claro
 	call 	printf_f
 	jnc		ec9
 	ret
 ec9:
 	lea 	bx,Verde_claro
-	mov 	cx,tVerde_claro
 	call 	printf_f
 	jnc		ec10
 	ret
 ec10:
 	lea 	bx,Ciano_claro
-	mov 	cx,tCiano_claro
 	call 	printf_f
 	jnc		ec11
 	ret
 ec11:
 	lea 	bx,Vermelho_claro
-	mov 	cx,tVermelho_claro
 	call 	printf_f
 	jnc		ec12
 	ret
 ec12:
 	lea 	bx,Magenta_claro
-	mov 	cx,tMagenta_claro
 	call 	printf_f
 	jnc		ec13
 	ret
 ec13:
 	lea 	bx,Amarelo 
-	mov 	cx,tamarelo
 	call 	printf_f
 	ret 
 
@@ -677,7 +415,7 @@ escreveContadores endp
 ; recebe em bx endereco da string
 printf_f proc near
 
-	call	setString
+	call	fprintf_s
 	jc		fimPrint_f
 
 	call 	escreveContador
@@ -685,8 +423,7 @@ printf_f proc near
 	inc 	contAtual
 
 	lea 	bx,MsgCRLF	
-	mov 	cx,2
-	call	setString
+	call	fprintf_s
 
 fimPrint_f:
 	ret 
@@ -739,30 +476,10 @@ ps_11:
 	
 fprintf_s	endp
 
-; so esperar
-waitchar proc near
-	mov		ah,8
-	int		21H
-	ret
-waitchar endp
 
-; recebe em cx colunaa do pixel
-; recebe em dx linha do pixel
-escreve_pixel proc near
-	mov ah,0ch
-	mov bh,00h 
-	int 10h
-escreve_pixel endp
-
-	;mov dx,396     ;top edge
-    ;mov di,640      ;control y loop
-
-	;mov cx,0     ;left edge
-    ;mov si,640       ;control x loop
-	;call linha_horizontal
 escreve_dados_parede proc near
-	mov  dl, 0                 ;◄■■ SCREEN COLUMN 0 (X).
-	mov  dh, 25                 ;◄■■ SCREEN ROW 0 (Y).
+	mov  dl, 0             
+	mov  dh, 25                
 	call set_cursor
 
 	lea		bx,MSGarquivo
@@ -788,8 +505,8 @@ escreve_contadores_tela proc near
 
 loop_escreve_contadores_tela:
 
-	call rejunte
-	call DrawSquare
+	call desenha_rejunte
+	call interior_quadrado
 
 	mov 	al,cor_atual 
 	mov 	ah,0
@@ -802,8 +519,8 @@ loop_escreve_contadores_tela:
 	call 	sprintf_w
 	
 
-	mov  dl, pos_x_contador                 ;◄■■ SCREEN COLUMN 0 (X).
-	mov  dh, pos_y_contador     ;◄■■ SCREEN ROW 0 (Y).
+	mov  dl, pos_x_contador               
+	mov  dh, pos_y_contador     
 	call set_cursor
 	lea		bx,string_contador
 	call	printf_s
@@ -818,35 +535,12 @@ loop_escreve_contadores_tela:
 	ret 
 escreve_contadores_tela endp 
 
-; desenha caixa 
-desenha_caixa proc near
-	mov cor_caixa,0eh
-
-
-	mov dx,16   
-	mov cx,0      
-    mov si,640      
-	call linha_horizontal
-
-
-	mov dx,16     
-    mov di,380     
-	mov cx,0         
-	call linha_vertical
-
-	mov dx,396        
-	mov cx,0    
-    mov si,640       
-	call linha_horizontal
-
-	mov dx,16     
-    mov di,380     
-	mov cx,639             
-	call linha_vertical
-
-	ret 
-
-desenha_caixa endp
+; so espera por tecla
+waitchar proc near
+	mov		ah,8
+	int		21H
+	ret
+waitchar endp
 
 ; em desenhar tem booleano e em lado_quadrado o tam do lado
 ; I-----
@@ -879,23 +573,124 @@ fim_desenha_quadrado:
 	ret 
 desenha_quadrado endp
 
+
+interior_quadrado proc near
+	mov dx,y_atual     ;coordenada y do quadrado
+	add dx,1
+    mov di,lado_quadrado        
+	sub di,2
+
+loop_y:
+	mov cx,x_atual   ;coordenada x do quadrado
+	add cx,1
+    mov si,lado_quadrado       
+	sub si,2
+
+loop_x:
+
+    mov bh,0h        ;desenha pixel
+	mov al,cor_atual
+    mov ah,0ch                 
+    int 10h                     
+
+    inc cx           ;loop menor
+    dec si                      
+    jne loop_x           
+
+    inc dx          ;loop maior       
+    dec di                     
+    jne loop_y           
+
+	ret 
+interior_quadrado endp
+
+
+; informacao da parede em al
+incrementaContador proc near 
+
+	mov desenhar,0; reseta booleano
+
+	cmp dl,'0'; verifica se caractere eh numero
+	jb fimic
+	cmp dl,'9'
+	ja ic0
+
+	sub dl,'0'
+	inc desenhar 
+
+	mov bl,dl	; incrementa contador
+	mov bh,0
+	add bx,bx
+	add WORD ptr [bx+contadores],1
+
+	jmp fimic
+
+ic0:
+	cmp dl,'A' ; verifica se eh letra vlida
+	jb fimic
+	cmp dl,'E'
+	ja fimic
+
+	sub dl,'A'-10
+	inc desenhar 
+
+	mov bl,dl ; incrementa contador
+	mov bh,0
+	add bx,bx
+	add WORD ptr [bx+contadores],1
+
+fimic:
+	mov 	cor_atual,dl
+	ret 
+
+incrementaContador endp 
+
+
+; desenha caixa que contem ladrilhos
+desenha_caixa proc near
+	mov cor_caixa,0eh ; cor da caixa
+
+	; desenha linha horizontal superior
+	mov dx,16   
+	mov cx,0      
+    mov si,640      
+	call linha_horizontal
+	;desenha linha vertical esquerda
+	mov dx,16     
+    mov di,380     
+	mov cx,0         
+	call linha_vertical
+	; desenha linha horizontal inferior
+	mov dx,396        
+	mov cx,0    
+    mov si,640       
+	call linha_horizontal
+	;desenha linha vertical direita
+	mov dx,16     
+    mov di,380     
+	mov cx,639             
+	call linha_vertical
+
+	ret 
+
+desenha_caixa endp
+
 ; recebe em cx colunaa do pixel
 ; recebe em dx linha do pixel
 ; I
 ; |
 ; |
 linha_vertical proc near
-
 linha_vertical_loop:
 
-    mov bh,0h                   ;video page
+    mov bh,0h       ; desenha pixel            
 	mov al,cor_caixa
-    mov ah,0ch                  ;draw pixel function
-    int 10h                     ;BIOS video interrupt
+    mov ah,0ch                
+    int 10h                    
 
-    inc dx                      ;advance X position
-    dec di                      ;count side of square to control the loop
-    jne linha_vertical_loop            ;next horizontal pixel
+    inc dx         ; atualiza posicao e verifica se terminou loop
+    dec di                     
+    jne linha_vertical_loop            
 
 	ret 
 linha_vertical endp
@@ -906,85 +701,39 @@ linha_vertical endp
 linha_horizontal proc near
 linha_horizontal_loop:
 
-    mov bh,0h                   ;video page
+    mov bh,0h      ; desenha pixel   
 	mov al,cor_caixa
-    mov ah,0ch                  ;draw pixel function
-    int 10h                     ;BIOS video interrupt
+    mov ah,0ch                 
+    int 10h                   
 
-    inc cx                      ;advance X position
-    dec si                      ;count side of square to control the loop
-    jne linha_horizontal_loop           ;next horizontal pixel
+    inc cx         ; atualiza posicao e verifica se terminou loop
+    dec si                      
+    jne linha_horizontal_loop          
 
 	ret 
 linha_horizontal endp
 
-
-
-rejunte proc near
-    ;mov dx,[Player1Drawy]       ;top edge
-    ;mov di,[SideLength]         ;control y loop
-	mov dx,y_atual      ;top edge
-    mov di,lado_quadrado        ;control y loop
-    ;mov di,14h                  ;or this, if the side length is fixed
-
-SquareYlooprejunte:
-    ;mov cx,[Player1Drawx]       ;left edge
-    ;mov si,[SideLength]         ;control x loop
-	mov cx,x_atual      ;left edge
-    mov si,lado_quadrado        ;control x loop
-    ;mov si,14h                  ;or this, if the side length is fixed
-
-SquareXlooprejunte:
-    push cx                     ;I don't know if these 4 pushes are necessary...
-    push dx
-    push si
-    push di
-
-    mov bh,0h                   ;video page
-    ;mov al,[player1disccolor]   ;colour
-	mov al,0fh
-    mov ah,0ch                  ;draw pixel function
-    int 10h                     ;BIOS video interrupt
-
-    pop di                      ;... or these 4 matching pops are necessary
-    pop si                      ;depends on whether int 10h func corrupts them
-    pop dx
-    pop cx
-
-    inc cx                      ;advance X position
-    dec si                      ;count side of square to control the loop
-    jne SquareXlooprejunte             ;next horizontal pixel
-
-    inc dx                      ;advance Y position
-    dec di                      ;count side of square to control the loop
-    jne SquareYlooprejunte            ;next row
-
-	ret 
-rejunte endp
-
-
 ; desenha rejunte
 desenha_rejunte proc near
-	mov cor_caixa,0fh
-
+	mov cor_caixa,0fh ; cor do rejunte
+	; desenha linha horizontal superior
 	mov dx,y_atual
 	mov cx,x_atual         
     mov si,lado_quadrado      
 	call linha_horizontal
-
-
+	; desenha linha vertical esquerda
 	mov dx,y_atual    
     mov di,lado_quadrado     
 	mov cx,x_atual           
 	call linha_vertical
-
+	; desenha linha horizontal inferior
 	mov dx,y_atual
 	add dx,lado_quadrado
 	sub dx,1       
 	mov cx,x_atual  
     mov si,lado_quadrado       
 	call linha_horizontal
-
+	; desenha linha vertical direita
 	mov dx,y_atual     
     mov di,lado_quadrado    
 	mov cx,x_atual             
@@ -997,48 +746,180 @@ desenha_rejunte proc near
 desenha_rejunte endp
 
 
+ tam_quadrado proc near
+	mov dx,0 ; divide 624 pela coluna
+	mov ax,624
+	div coluna  
+	mov bx,ax 
+ 
+	mov dx,0 ; divide 360 pela linha
+	mov ax,360
+	div linha
 
+	cmp ax,bx ; coloca o menor em lado_quadrado
+	jb colocaAX
+	mov ax,bx
 
-interior_quadrado proc near
-	mov dx,y_atual      ;top edge
-	add dx,1
-    mov di,lado_quadrado        ;control y loop
-	sub di,2
-
-SquareYloop:
-	mov cx,x_atual      ;left edge
-	add cx,1
-    mov si,lado_quadrado        ;control x loop
-	sub si,2
-
-SquareXloop:
-    push cx                     ;I don't know if these 4 pushes are necessary...
-    push dx
-    push si
-    push di
-
-    mov bh,0h                   ;video page
-    ;mov al,[player1disccolor]   ;colour
-	mov al,cor_atual
-    mov ah,0ch                  ;draw pixel function
-    int 10h                     ;BIOS video interrupt
-
-    pop di                      ;... or these 4 matching pops are necessary
-    pop si                      ;depends on whether int 10h func corrupts them
-    pop dx
-    pop cx
-
-    inc cx                      ;advance X position
-    dec si                      ;count side of square to control the loop
-    jne SquareXloop             ;next horizontal pixel
-
-    inc dx                      ;advance Y position
-    dec di                      ;count side of square to control the loop
-    jne SquareYloop             ;next row
+colocaAX:	
+	mov lado_quadrado,ax 
 
 	ret 
-interior_quadrado endp
+ tam_quadrado endp
 
+
+
+;--------------------------------------------------------------------
+;Funcao Pede o nome do arquivo de destino salva-o em FileNameDst(funcao adaptada do moodle)
+;--------------------------------------------------------------------
+GetFileNameDst	proc	near
+
+	;gets(FileNameDst);
+	lea		bx, FileNameDst
+
+
+	lea		si,FileNameSrc					; Copia do buffer de teclado para o FileName
+	mov 	di,bx
+	mov		cl,String+1
+	mov		ch,0
+	rep 	movsb
+
+	; agora coloca a extensao .rel
+	std ; para voltar na string
+	dec di ; para voltar para dentro da string
+	mov		cl,String+1
+	mov		ch,0
+	mov 	al,'.'
+	repne 	scasb
+
+	cld ; retorna ao valor de antes
+	inc di ; para ficar em '.'
+
+	mov		byte ptr es:[di],'.'	
+	inc		di
+	mov		byte ptr es:[di],'r'
+	inc		di	
+	mov		byte ptr es:[di],'e'	
+	inc		di
+	mov		byte ptr es:[di],'l'	
+	inc		di
+
+	
+	mov		byte ptr es:[di],0			; Coloca marca de fim de string
+
+	ret
+GetFileNameDst	endp
+
+
+
+;
+;--------------------------------------------------------------------
+;Funcao Le um string do teclado e coloca no buffer apontado por BX(adaptada de funcao no moodle)
+;		gets(char *s -> bx)
+;--------------------------------------------------------------------
+gets	proc	near
+	push	bx
+
+	mov		ah,0ah						; Lê uma linha do teclado
+	lea		dx,String
+	mov		byte ptr String, MAXSTRING-4	; 2 caracteres no inicio e um eventual CR LF no final
+	int		21h
+
+	pop 	bx
+
+	mov 	ponto,0					; inicializa ponto (booleano)
+	lea		di,String+2				; inicializa registrador para percorrer	
+	mov		cl,String+1				; inicializa contador
+	mov		ch,0
+	mov 	al,'.'						; caractere para buscar
+	; testa se acha ponto
+	repne 	scasb
+	jne 	continuaGets0 ; se nao achou continua
+	inc 	ponto ;coloca 1 no booleano
+
+	continuaGets0:
+	lea		si,String+2					; Copia do buffer de teclado para o FileName
+	mov 	di,bx
+	mov		cl,String+1
+	mov		ch,0
+	rep 	movsb
+
+	cmp 	ponto,0
+	jne 	coloca0
+
+	;incrementa numero de caracteres
+	add 	string+1,4
+
+	; coloca .par 
+	mov		byte ptr es:[di],'.'	
+	inc		di
+	mov		byte ptr es:[di],'p'
+	inc		di	
+	mov		byte ptr es:[di],'a'	
+	inc		di
+	mov		byte ptr es:[di],'r'	
+	inc		di
+
+coloca0:
+	mov		byte ptr es:[di],0			; Coloca marca de fim de string
+
+
+	ret
+gets	endp
+
+
+;--------------------------------------------------------------------
+;Funcao Pede o nome do arquivo de origem salva-o em FileNameSrc(copiado do moodle)
+;--------------------------------------------------------------------
+GetFileNameSrc	proc	near
+	;printf("Nome do arquivo origem: ")
+	lea		bx, MsgPedeArquivoSrc
+	call	printf_s
+
+	;gets(FileNameSrc);
+	lea		bx, FileNameSrc
+	call	gets
+
+	;printf("\r\n")
+	lea		bx, MsgCRLF
+	call	printf_s
+	
+	ret
+GetFileNameSrc	endp
+
+;Limpa tela e troca para o modo texto
+clrscr proc near
+	; troca para o modo texto
+	mov ah,0
+	mov al,07h
+	int 10h
+
+	; limpa tela
+    mov ax,0700h
+    mov bh,07h 
+    mov cx,0000h 
+    mov dx,184fh 
+    int 10h
+
+	ret 
+clrscr endp
+
+;coloca o cursor na posicao
+;DL=X, DH=Y.
+set_cursor proc
+      mov  ah, 2
+      mov  bh, 0
+      int  10h
+      ret
+set_cursor endp
+
+;procedimento para zerar contadores
+limpa_contadores proc
+	lea di,contadores
+	mov cx,16
+	mov ax,0
+	rep stosw
+	ret
+limpa_contadores endp
 
 
 ;--------------------------------------------------------------------
