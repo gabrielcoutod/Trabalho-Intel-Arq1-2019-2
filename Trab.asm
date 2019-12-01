@@ -415,14 +415,14 @@ escreveContadores endp
 ; recebe em bx endereco da string
 printf_f proc near
 
-	call	fprintf_s
+	call	fprintf_s	; escreve cor
 	jc		fimPrint_f
 
-	call 	escreveContador
+	call 	escreveContador; escreve contador
 	jc 		fimPrint_f
 	inc 	contAtual
 
-	lea 	bx,MsgCRLF	
+	lea 	bx,MsgCRLF	;escreve CRLF
 	call	fprintf_s
 
 fimPrint_f:
@@ -432,14 +432,14 @@ printf_f endp
 
 
 escreveContador proc near
-	lea 	bx,contadores 
+	lea 	bx,contadores ;coloca em ax valor atual do contador
 	add 	bx,contAtual
 	add 	bx,contAtual
 	mov		ax,[bx]
 
-	lea 	bx,string_contador
+	lea 	bx,string_contador;converte contador para string
 	call 	sprintf_w
-	lea		bx,string_contador
+	lea		bx,string_contador; escreve contador
 	call 	fprintf_s
 	ret
 escreveContador endp 
@@ -455,14 +455,14 @@ fprintf_s	proc	near
 ;	While (*s!='\0') {
 	mov		dl,[bx]
 	cmp		dl,0
-	je		ps_11
+	je		fprintf_s_fim
 
 ;		putchar(*s)
 	push	bx
 	mov 	bx,FileHandleDst
 	call 	setChar
 	pop		bx
-	jc		ps_11 
+	jc		fprintf_s_fim
 
 
 ;		++s;
@@ -471,18 +471,59 @@ fprintf_s	proc	near
 ;	}
 	jmp		fprintf_s
 		
-ps_11:
+fprintf_s_fim:
 	ret
 	
 fprintf_s	endp
 
 
+escreve_contadores_tela proc near
+
+	mov cor_atual,0	; coloca cor inicial
+	mov x_atual,30	; posicoes iniciais dos ladrilhos
+	mov y_atual,420 
+	mov pos_x_contador,4 ; posicoes iniciais dos contadores
+	mov pos_y_contador,28
+
+loop_escreve_contadores_tela:
+
+	call desenha_rejunte	; desenha quadrado
+	call interior_quadrado
+
+	mov 	al,cor_atual ; carrega valor do contador atual
+	mov 	ah,0
+	lea 	bx,contadores 
+	add 	bx,ax 
+	add 	bx,ax 
+	mov		ax,[bx]
+
+	lea 	bx,string_contador; converte numero para string
+	call 	sprintf_w
+	
+
+	mov  dl, pos_x_contador ; coloca cursor na posicao do cont atual         
+	mov  dh, pos_y_contador     
+	call set_cursor
+	lea		bx,string_contador	;escreve contador na posicao
+	call	printf_s
+
+	add pos_x_contador,5	; incrementa posicao x do contador
+	add x_atual,40			; incrementa posicao x do ladrilho
+	add cor_atual,1 		; incrementa cor
+	mov al,cor_atual		; verifica se terminou 
+	cmp al,0fh
+	jne loop_escreve_contadores_tela
+
+	ret 
+escreve_contadores_tela endp 
+
+
 escreve_dados_parede proc near
-	mov  dl, 0             
+	mov  dl, 0       ; coloca cursor em baixo da caixa amarela
 	mov  dh, 25                
 	call set_cursor
-
-	lea		bx,MSGarquivo
+	; coloca mensagem com informacoes da aprede
+	lea		bx,MSGarquivo 
 	call	printf_s
 
 	lea		bx,FileNameSrc
@@ -493,47 +534,6 @@ escreve_dados_parede proc near
 
 	ret
 escreve_dados_parede endp
-
-
-escreve_contadores_tela proc near
-
-	mov cor_atual,0
-	mov x_atual,30
-	mov y_atual,420 
-	mov pos_x_contador,4
-	mov pos_y_contador,28
-
-loop_escreve_contadores_tela:
-
-	call desenha_rejunte
-	call interior_quadrado
-
-	mov 	al,cor_atual 
-	mov 	ah,0
-	lea 	bx,contadores 
-	add 	bx,ax 
-	add 	bx,ax 
-	mov		ax,[bx]
-
-	lea 	bx,string_contador
-	call 	sprintf_w
-	
-
-	mov  dl, pos_x_contador               
-	mov  dh, pos_y_contador     
-	call set_cursor
-	lea		bx,string_contador
-	call	printf_s
-
-	add pos_x_contador,5
-	add x_atual,40
-	add cor_atual,1 
-	mov al,cor_atual
-	cmp al,0fh
-	jne loop_escreve_contadores_tela
-
-	ret 
-escreve_contadores_tela endp 
 
 ; so espera por tecla
 waitchar proc near
