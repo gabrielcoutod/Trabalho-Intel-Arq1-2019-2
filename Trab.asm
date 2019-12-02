@@ -29,6 +29,8 @@ MsgErroWriteFile	db	"Erro na escrita do arquivo.", CR, LF, 0
 MsgCRLF				db	CR, LF, 0
 Msgarquivo 			db  "Arquivo ",0
 Msgarquivo2 		db  " - Total de ladrilhos por cor:",0
+Msgsaida0			db  "O arquivo ",0
+Msgsaida1			db  " contem a seguinte quantidade de ladrilhos:",CR ,LF ,0
 
 
 String	db	MAXSTRING dup (?) ; buffer Usado na funcao gets
@@ -333,7 +335,22 @@ TerminouArquivo:
 ; escreve contadores handle em bx
 escreveContadores proc near
 	mov		contAtual,0
-
+escrevetxt0:
+	lea 	bx,Msgsaida0
+	call	fprintf_s
+	jnc		escrevetxt1
+	ret
+escrevetxt1:
+	lea 	bx,FileNameSrc
+	call	fprintf_s
+	jnc		escrevetxt2
+	ret 
+escrevetxt2:
+	lea 	bx,Msgsaida1
+	call	fprintf_s
+	jnc		escrevetxt3
+	ret 
+escrevetxt3:
 	lea 	bx,Preto
 	call 	printf_f
 	jnc		ec0
